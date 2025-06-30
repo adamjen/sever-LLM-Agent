@@ -1,0 +1,48 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "print",
+                "args": [
+                  {
+                    "literal": "Hello, Sever World!"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "print": {
+        "args": [
+          {
+            "name": "message",
+            "type": "str"
+          }
+        ],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [
+                  {
+                    "var": "message"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "a",
+              "type": "i32",
+              "value": {
+                "literal": 10
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "b",
+              "type": "i32",
+              "value": {
+                "literal": 20
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "sum",
+              "type": "i32",
+              "value": {
+                "op": {
+                  "kind": "add",
+                  "args": [
+                    {
+                      "var": "a"
+                    },
+                    {
+                      "var": "b"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "product",
+              "type": "i32",
+              "value": {
+                "op": {
+                  "kind": "mul",
+                  "args": [
+                    {
+                      "var": "a"
+                    },
+                    {
+                      "var": "b"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "return": {
+              "op": {
+                "kind": "add",
+                "args": [
+                  {
+                    "var": "sum"
+                  },
+                  {
+                    "var": "product"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

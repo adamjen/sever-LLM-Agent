@@ -1,0 +1,593 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SIRS - Sever Intermediate Representation Schema",
+  "description": "JSON schema for Sever programs written in structured IR format",
+  "type": "object",
+  "required": ["program"],
+  "properties": {
+    "program": {
+      "type": "object",
+      "required": ["entry", "functions"],
+      "properties": {
+        "entry": {
+          "type": "string",
+          "description": "Name of the entry point function"
+        },
+        "modules": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Module"
+          }
+        },
+        "functions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Function"
+          }
+        },
+        "types": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/TypeDef"
+          }
+        },
+        "constants": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Constant"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Module": {
+      "type": "object",
+      "properties": {
+        "exports": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "imports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "module": {"type": "string"},
+              "items": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "Function": {
+      "type": "object",
+      "required": ["args", "return", "body"],
+      "properties": {
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Parameter"
+          }
+        },
+        "return": {
+          "$ref": "#/definitions/Type"
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Statement"
+          }
+        },
+        "inline": {
+          "type": "boolean",
+          "default": false
+        },
+        "pure": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "Parameter": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"$ref": "#/definitions/Type"}
+      }
+    },
+    "Type": {
+      "oneOf": [
+        {"type": "string", "enum": ["void", "bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64", "str"]},
+        {
+          "type": "object",
+          "properties": {
+            "array": {
+              "type": "object",
+              "required": ["element", "size"],
+              "properties": {
+                "element": {"$ref": "#/definitions/Type"},
+                "size": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "slice": {
+              "type": "object",
+              "required": ["element"],
+              "properties": {
+                "element": {"$ref": "#/definitions/Type"}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "struct": {
+              "type": "object",
+              "additionalProperties": {"$ref": "#/definitions/Type"}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "union": {
+              "type": "object",
+              "additionalProperties": {"$ref": "#/definitions/Type"}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "optional": {"$ref": "#/definitions/Type"}
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "function": {
+              "type": "object",
+              "required": ["args", "return"],
+              "properties": {
+                "args": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Type"}
+                },
+                "return": {"$ref": "#/definitions/Type"}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "distribution": {
+              "type": "object",
+              "required": ["kind"],
+              "properties": {
+                "kind": {"type": "string", "enum": ["uniform", "normal", "categorical", "bernoulli", "exponential", "gamma", "beta"]},
+                "param_types": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Type"}
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "TypeDef": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"$ref": "#/definitions/Type"}
+      }
+    },
+    "Constant": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": {"$ref": "#/definitions/Type"},
+        "value": {"$ref": "#/definitions/Expression"}
+      }
+    },
+    "Statement": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "let": {
+              "type": "object",
+              "required": ["name", "value"],
+              "properties": {
+                "name": {"type": "string"},
+                "type": {"$ref": "#/definitions/Type"},
+                "mutable": {"type": "boolean", "default": false},
+                "value": {"$ref": "#/definitions/Expression"}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "assign": {
+              "type": "object",
+              "required": ["target", "value"],
+              "properties": {
+                "target": {"$ref": "#/definitions/LValue"},
+                "value": {"$ref": "#/definitions/Expression"}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "if": {
+              "type": "object",
+              "required": ["condition", "then"],
+              "properties": {
+                "condition": {"$ref": "#/definitions/Expression"},
+                "then": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Statement"}
+                },
+                "else": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Statement"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "match": {
+              "type": "object",
+              "required": ["value", "cases"],
+              "properties": {
+                "value": {"$ref": "#/definitions/Expression"},
+                "cases": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["pattern", "body"],
+                    "properties": {
+                      "pattern": {"$ref": "#/definitions/Pattern"},
+                      "body": {
+                        "type": "array",
+                        "items": {"$ref": "#/definitions/Statement"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "while": {
+              "type": "object",
+              "required": ["condition", "body"],
+              "properties": {
+                "condition": {"$ref": "#/definitions/Expression"},
+                "body": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Statement"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "for": {
+              "type": "object",
+              "required": ["variable", "iterable", "body"],
+              "properties": {
+                "variable": {"type": "string"},
+                "iterable": {"$ref": "#/definitions/Expression"},
+                "body": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Statement"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "return": {
+              "$ref": "#/definitions/Expression"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "break": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "continue": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "observe": {
+              "type": "object",
+              "required": ["distribution", "value"],
+              "properties": {
+                "distribution": {"type": "string"},
+                "params": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Expression"}
+                },
+                "value": {"$ref": "#/definitions/Expression"}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "prob_assert": {
+              "type": "object",
+              "required": ["condition", "confidence"],
+              "properties": {
+                "condition": {"$ref": "#/definitions/Expression"},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "expression": {"$ref": "#/definitions/Expression"}
+          }
+        }
+      ]
+    },
+    "Expression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "literal": {
+              "oneOf": [
+                {"type": "integer"},
+                {"type": "number"},
+                {"type": "string"},
+                {"type": "boolean"},
+                {"type": "null"}
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "var": {"type": "string"}
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "call": {
+              "type": "object",
+              "required": ["function", "args"],
+              "properties": {
+                "function": {"type": "string"},
+                "args": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Expression"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "object",
+              "required": ["kind", "args"],
+              "properties": {
+                "kind": {"type": "string", "enum": ["add", "sub", "mul", "div", "mod", "pow", "eq", "ne", "lt", "le", "gt", "ge", "and", "or", "not", "bitand", "bitor", "bitxor", "bitnot", "shl", "shr"]},
+                "args": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Expression"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "index": {
+              "type": "object",
+              "required": ["array", "index"],
+              "properties": {
+                "array": {"$ref": "#/definitions/Expression"},
+                "index": {"$ref": "#/definitions/Expression"}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "field": {
+              "type": "object",
+              "required": ["object", "field"],
+              "properties": {
+                "object": {"$ref": "#/definitions/Expression"},
+                "field": {"type": "string"}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "array": {
+              "type": "array",
+              "items": {"$ref": "#/definitions/Expression"}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "struct": {
+              "type": "object",
+              "additionalProperties": {"$ref": "#/definitions/Expression"}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sample": {
+              "type": "object",
+              "required": ["distribution"],
+              "properties": {
+                "distribution": {"type": "string"},
+                "params": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Expression"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "infer": {
+              "type": "object",
+              "required": ["model", "data"],
+              "properties": {
+                "model": {"$ref": "#/definitions/Expression"},
+                "data": {"$ref": "#/definitions/Expression"}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cast": {
+              "type": "object",
+              "required": ["value", "type"],
+              "properties": {
+                "value": {"$ref": "#/definitions/Expression"},
+                "type": {"$ref": "#/definitions/Type"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "LValue": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "var": {"type": "string"}
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "index": {
+              "type": "object",
+              "required": ["array", "index"],
+              "properties": {
+                "array": {"$ref": "#/definitions/LValue"},
+                "index": {"$ref": "#/definitions/Expression"}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "field": {
+              "type": "object",
+              "required": ["object", "field"],
+              "properties": {
+                "object": {"$ref": "#/definitions/LValue"},
+                "field": {"type": "string"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Pattern": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "literal": {
+              "oneOf": [
+                {"type": "integer"},
+                {"type": "number"},
+                {"type": "string"},
+                {"type": "boolean"}
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "var": {"type": "string"}
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "wildcard": {"type": "null"}
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "struct": {
+              "type": "object",
+              "additionalProperties": {"$ref": "#/definitions/Pattern"}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

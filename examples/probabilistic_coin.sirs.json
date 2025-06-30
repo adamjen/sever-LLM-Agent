@@ -1,0 +1,152 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "let": {
+              "name": "coin_bias",
+              "type": "f64",
+              "value": {
+                "sample": {
+                  "distribution": "beta",
+                  "params": [
+                    {
+                      "literal": 2.0
+                    },
+                    {
+                      "literal": 2.0
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "observe": {
+              "distribution": "bernoulli",
+              "params": [
+                {
+                  "var": "coin_bias"
+                }
+              ],
+              "value": {
+                "literal": 1.0
+              }
+            }
+          },
+          {
+            "observe": {
+              "distribution": "bernoulli",
+              "params": [
+                {
+                  "var": "coin_bias"
+                }
+              ],
+              "value": {
+                "literal": 1.0
+              }
+            }
+          },
+          {
+            "observe": {
+              "distribution": "bernoulli",
+              "params": [
+                {
+                  "var": "coin_bias"
+                }
+              ],
+              "value": {
+                "literal": 0.0
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "next_flip",
+              "type": "f64",
+              "value": {
+                "sample": {
+                  "distribution": "bernoulli",
+                  "params": [
+                    {
+                      "var": "coin_bias"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "prob_assert": {
+              "condition": {
+                "op": {
+                  "kind": "gt",
+                  "args": [
+                    {
+                      "var": "coin_bias"
+                    },
+                    {
+                      "literal": 0.3
+                    }
+                  ]
+                }
+              },
+              "confidence": 0.8
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "print_float",
+                "args": [
+                  {
+                    "var": "coin_bias"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "print_float",
+                "args": [
+                  {
+                    "var": "next_flip"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "print_float": {
+        "args": [
+          {
+            "name": "value",
+            "type": "f64"
+          }
+        ],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_float",
+                "args": [
+                  {
+                    "var": "value"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

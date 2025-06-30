@@ -1,0 +1,159 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "let": {
+              "name": "n",
+              "type": "i32",
+              "value": {
+                "literal": 10
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "result",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "fibonacci",
+                  "args": [
+                    {
+                      "var": "n"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "print_int",
+                "args": [
+                  {
+                    "var": "result"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "fibonacci": {
+        "args": [
+          {
+            "name": "n",
+            "type": "i32"
+          }
+        ],
+        "return": "i32",
+        "body": [
+          {
+            "if": {
+              "condition": {
+                "op": {
+                  "kind": "le",
+                  "args": [
+                    {
+                      "var": "n"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                }
+              },
+              "then": [
+                {
+                  "return": {
+                    "var": "n"
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "return": {
+                    "op": {
+                      "kind": "add",
+                      "args": [
+                        {
+                          "call": {
+                            "function": "fibonacci",
+                            "args": [
+                              {
+                                "op": {
+                                  "kind": "sub",
+                                  "args": [
+                                    {
+                                      "var": "n"
+                                    },
+                                    {
+                                      "literal": 1
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "call": {
+                            "function": "fibonacci",
+                            "args": [
+                              {
+                                "op": {
+                                  "kind": "sub",
+                                  "args": [
+                                    {
+                                      "var": "n"
+                                    },
+                                    {
+                                      "literal": 2
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "print_int": {
+        "args": [
+          {
+            "name": "value",
+            "type": "i32"
+          }
+        ],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [
+                  {
+                    "var": "value"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

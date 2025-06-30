@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(zig build)",
+      "Bash(grep:*)",
+      "Bash(zig build:*)",
+      "Bash(./zig-out/bin/sev:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(./simple_math)",
+      "Bash(./hello_world)"
+    ],
+    "deny": []
+  }
+}

@@ -1,0 +1,294 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "let": {
+              "name": "num_samples",
+              "type": "i32",
+              "value": {
+                "literal": 10000
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "pi_estimate",
+              "type": "f64",
+              "value": {
+                "call": {
+                  "function": "estimate_pi",
+                  "args": [
+                    {
+                      "var": "num_samples"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "print_float",
+                "args": [
+                  {
+                    "var": "pi_estimate"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "estimate_pi": {
+        "args": [
+          {
+            "name": "n",
+            "type": "i32"
+          }
+        ],
+        "return": "f64",
+        "body": [
+          {
+            "let": {
+              "name": "inside_circle",
+              "type": "i32",
+              "mutable": true,
+              "value": {
+                "literal": 0
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "i",
+              "type": "i32",
+              "mutable": true,
+              "value": {
+                "literal": 0
+              }
+            }
+          },
+          {
+            "while": {
+              "condition": {
+                "op": {
+                  "kind": "lt",
+                  "args": [
+                    {
+                      "var": "i"
+                    },
+                    {
+                      "var": "n"
+                    }
+                  ]
+                }
+              },
+              "body": [
+                {
+                  "let": {
+                    "name": "x",
+                    "type": "f64",
+                    "value": {
+                      "sample": {
+                        "distribution": "uniform",
+                        "params": [
+                          {
+                            "literal": -1.0
+                          },
+                          {
+                            "literal": 1.0
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "let": {
+                    "name": "y",
+                    "type": "f64",
+                    "value": {
+                      "sample": {
+                        "distribution": "uniform",
+                        "params": [
+                          {
+                            "literal": -1.0
+                          },
+                          {
+                            "literal": 1.0
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "let": {
+                    "name": "distance_squared",
+                    "type": "f64",
+                    "value": {
+                      "op": {
+                        "kind": "add",
+                        "args": [
+                          {
+                            "op": {
+                              "kind": "mul",
+                              "args": [
+                                {
+                                  "var": "x"
+                                },
+                                {
+                                  "var": "x"
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "op": {
+                              "kind": "mul",
+                              "args": [
+                                {
+                                  "var": "y"
+                                },
+                                {
+                                  "var": "y"
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "condition": {
+                      "op": {
+                        "kind": "le",
+                        "args": [
+                          {
+                            "var": "distance_squared"
+                          },
+                          {
+                            "literal": 1.0
+                          }
+                        ]
+                      }
+                    },
+                    "then": [
+                      {
+                        "assign": {
+                          "target": {
+                            "var": "inside_circle"
+                          },
+                          "value": {
+                            "op": {
+                              "kind": "add",
+                              "args": [
+                                {
+                                  "var": "inside_circle"
+                                },
+                                {
+                                  "literal": 1
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "assign": {
+                    "target": {
+                      "var": "i"
+                    },
+                    "value": {
+                      "op": {
+                        "kind": "add",
+                        "args": [
+                          {
+                            "var": "i"
+                          },
+                          {
+                            "literal": 1
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "return": {
+              "op": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "literal": 4.0
+                  },
+                  {
+                    "op": {
+                      "kind": "div",
+                      "args": [
+                        {
+                          "cast": {
+                            "value": {
+                              "var": "inside_circle"
+                            },
+                            "type": "f64"
+                          }
+                        },
+                        {
+                          "cast": {
+                            "value": {
+                              "var": "n"
+                            },
+                            "type": "f64"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "print_float": {
+        "args": [
+          {
+            "name": "value",
+            "type": "f64"
+          }
+        ],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_float",
+                "args": [
+                  {
+                    "var": "value"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
