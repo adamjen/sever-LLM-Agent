@@ -658,12 +658,194 @@ pub const FunctionInlining = struct {
     }
 };
 
+/// Loop Invariant Code Motion optimization pass
+/// Moves loop-invariant computations outside of loops
+pub const LoopInvariantCodeMotion = struct {
+    allocator: Allocator,
+    
+    pub fn init(allocator: Allocator) LoopInvariantCodeMotion {
+        return LoopInvariantCodeMotion{
+            .allocator = allocator,
+        };
+    }
+    
+    /// Run loop invariant code motion on a CIR module
+    pub fn optimize(self: *LoopInvariantCodeMotion, module: *CirModule) OptError!void {
+        var func_iter = module.functions.iterator();
+        while (func_iter.next()) |entry| {
+            const function = entry.value_ptr;
+            try self.optimizeFunction(function);
+        }
+    }
+    
+    /// Run loop invariant code motion on a single function
+    fn optimizeFunction(self: *LoopInvariantCodeMotion, function: *CirFunction) OptError!void {
+        // Find loops in the function
+        var loops = try self.identifyLoops(function);
+        defer loops.deinit();
+        
+        // For each loop, move invariant code to the pre-header
+        for (loops.items) |loop_info| {
+            try self.moveInvariantCode(function, loop_info);
+        }
+    }
+    
+    const LoopInfo = struct {
+        header_block: u32,
+        body_blocks: ArrayList(u32),
+        preheader_block: ?u32,
+    };
+    
+    fn identifyLoops(self: *LoopInvariantCodeMotion, function: *CirFunction) OptError!ArrayList(LoopInfo) {
+        var loops = ArrayList(LoopInfo).init(self.allocator);
+        
+        // Simplified loop detection - look for back edges via successors
+        // In a real implementation, this would use more sophisticated analysis
+        for (function.basic_blocks.items, 0..) |*block, block_idx| {
+            // Check if this block has successors that point to earlier blocks (back edges)
+            for (block.successors.items) |successor_label| {
+                // Find the successor block index
+                for (function.basic_blocks.items, 0..) |*target_block, target_idx| {
+                    if (std.mem.eql(u8, target_block.label, successor_label) and target_idx < block_idx) {
+                        // Found a back edge - this indicates a loop
+                        var loop_info = LoopInfo{
+                            .header_block = @intCast(target_idx),
+                            .body_blocks = ArrayList(u32).init(self.allocator),
+                            .preheader_block = null,
+                        };
+                        
+                        // Add the current block to loop body
+                        try loop_info.body_blocks.append(@intCast(block_idx));
+                        try loops.append(loop_info);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return loops;
+    }
+    
+    fn moveInvariantCode(self: *LoopInvariantCodeMotion, function: *CirFunction, loop_info: LoopInfo) OptError!void {
+        _ = self;
+        _ = function;
+        _ = loop_info;
+        // Simplified implementation - would analyze dependencies and move invariant instructions
+        // For now, this is a placeholder
+    }
+};
+
+/// Loop Unrolling optimization pass
+/// Unrolls small loops to reduce branching overhead
+pub const LoopUnrolling = struct {
+    allocator: Allocator,
+    max_unroll_factor: u32,
+    
+    pub fn init(allocator: Allocator) LoopUnrolling {
+        return LoopUnrolling{
+            .allocator = allocator,
+            .max_unroll_factor = 4, // Conservative default
+        };
+    }
+    
+    /// Run loop unrolling on a CIR module
+    pub fn optimize(self: *LoopUnrolling, module: *CirModule) OptError!void {
+        var func_iter = module.functions.iterator();
+        while (func_iter.next()) |entry| {
+            const function = entry.value_ptr;
+            try self.optimizeFunction(function);
+        }
+    }
+    
+    /// Run loop unrolling on a single function
+    fn optimizeFunction(self: *LoopUnrolling, function: *CirFunction) OptError!void {
+        // Find loops with constant trip counts
+        for (function.basic_blocks.items, 0..) |*block, block_idx| {
+            if (self.isUnrollableLoop(block)) {
+                try self.unrollLoop(function, @intCast(block_idx));
+            }
+        }
+    }
+    
+    fn isUnrollableLoop(self: *LoopUnrolling, block: *CirBasicBlock) bool {
+        _ = self;
+        _ = block;
+        
+        // Check if this is a simple loop with a constant trip count
+        // For now, be conservative and don't unroll any loops
+        // A real implementation would analyze:
+        // - Loop structure and induction variables
+        // - Trip count analysis
+        // - Code size vs performance tradeoffs
+        return false;
+    }
+    
+    fn unrollLoop(self: *LoopUnrolling, function: *CirFunction, loop_header: u32) OptError!void {
+        _ = self;
+        _ = function;
+        _ = loop_header;
+        // Simplified implementation - would duplicate loop body multiple times
+        // For now, this is a placeholder
+    }
+};
+
+/// Loop Strength Reduction optimization pass
+/// Replaces expensive operations in loops with cheaper equivalent operations
+pub const LoopStrengthReduction = struct {
+    allocator: Allocator,
+    
+    pub fn init(allocator: Allocator) LoopStrengthReduction {
+        return LoopStrengthReduction{
+            .allocator = allocator,
+        };
+    }
+    
+    /// Run loop strength reduction on a CIR module
+    pub fn optimize(self: *LoopStrengthReduction, module: *CirModule) OptError!void {
+        var func_iter = module.functions.iterator();
+        while (func_iter.next()) |entry| {
+            const function = entry.value_ptr;
+            try self.optimizeFunction(function);
+        }
+    }
+    
+    /// Run loop strength reduction on a single function
+    fn optimizeFunction(self: *LoopStrengthReduction, function: *CirFunction) OptError!void {
+        // Look for induction variables and expensive operations that can be reduced
+        for (function.basic_blocks.items) |*block| {
+            for (block.instructions.items) |*inst| {
+                try self.reduceInstruction(inst);
+            }
+        }
+    }
+    
+    fn reduceInstruction(self: *LoopStrengthReduction, inst: *CirInstruction) OptError!void {
+        _ = self;
+        
+        // Look for patterns like i * constant in loops and replace with addition
+        switch (inst.op) {
+            .mul => {
+                // Check if one operand is a loop induction variable
+                // and the other is a constant - could replace with repeated addition
+                // For now, this is a placeholder for the full analysis
+            },
+            .div => {
+                // Division by constants could be replaced with multiplication by reciprocal
+            },
+            else => {},
+        }
+    }
+};
+
 /// Optimization manager that coordinates multiple optimization passes
 pub const OptimizationManager = struct {
     allocator: Allocator,
     dead_code_elimination: DeadCodeElimination,
     constant_folding: ConstantFolding,
     function_inlining: FunctionInlining,
+    loop_invariant_code_motion: LoopInvariantCodeMotion,
+    loop_unrolling: LoopUnrolling,
+    loop_strength_reduction: LoopStrengthReduction,
     
     pub fn init(allocator: Allocator) OptimizationManager {
         return OptimizationManager{
@@ -671,6 +853,9 @@ pub const OptimizationManager = struct {
             .dead_code_elimination = DeadCodeElimination.init(allocator),
             .constant_folding = ConstantFolding.init(allocator),
             .function_inlining = FunctionInlining.init(allocator),
+            .loop_invariant_code_motion = LoopInvariantCodeMotion.init(allocator),
+            .loop_unrolling = LoopUnrolling.init(allocator),
+            .loop_strength_reduction = LoopStrengthReduction.init(allocator),
         };
     }
     
@@ -684,13 +869,18 @@ pub const OptimizationManager = struct {
         // 1. Constant folding first (creates more optimization opportunities)
         try self.constant_folding.optimize(module);
         
-        // 2. Dead code elimination (removes code made dead by constant folding)
+        // 2. Loop optimizations (work on loops before other transformations)
+        try self.loop_invariant_code_motion.optimize(module);
+        try self.loop_strength_reduction.optimize(module);
+        try self.loop_unrolling.optimize(module);
+        
+        // 3. Dead code elimination (removes code made dead by previous optimizations)
         try self.dead_code_elimination.optimize(module);
         
-        // 3. Function inlining (would run last as it can create more optimization opportunities)
+        // 4. Function inlining (would run after loop opts as it can create more optimization opportunities)
         try self.function_inlining.optimize(module);
         
-        // Could run another round of DCE after inlining
+        // 5. Final cleanup pass
         try self.dead_code_elimination.optimize(module);
     }
 };

@@ -7,6 +7,11 @@ const SeverCompiler = @import("compiler.zig").SeverCompiler;
 const SirsParser = @import("sirs.zig");
 const CLI = @import("cli.zig");
 const SirsFormatter = @import("formatter.zig").SirsFormatter;
+const Debugger = @import("debugger.zig").Debugger;
+const DebugInfoGenerator = @import("debugger.zig").DebugInfoGenerator;
+const Linter = @import("linter.zig").Linter;
+const LintConfig = @import("linter.zig").LintConfig;
+const LintSeverity = @import("linter.zig").LintSeverity;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -51,6 +56,18 @@ pub fn main() !void {
         try replCommand(allocator);
     } else if (std.mem.eql(u8, command, "serve")) {
         try serveCommand(allocator);
+    } else if (std.mem.eql(u8, command, "debug")) {
+        if (args.len < 3) {
+            print("Error: debug command requires input file\n", .{});
+            return;
+        }
+        try debugCommand(allocator, args[2]);
+    } else if (std.mem.eql(u8, command, "lint")) {
+        if (args.len < 3) {
+            print("Error: lint command requires input file\n", .{});
+            return;
+        }
+        try lintCommand(allocator, args[2]);
     } else {
         print("Error: Unknown command '{s}'\n", .{command});
         try CLI.printUsage();
@@ -115,4 +132,108 @@ fn serveCommand(allocator: Allocator) !void {
     defer compiler.deinit();
     
     try compiler.serve();
+}
+
+fn debugCommand(allocator: Allocator, input_file: []const u8) !void {
+    print("Starting Sever debugger for: {s}\n", .{input_file});
+    print("Type 'help' for available commands, 'exit' to quit.\n\n", .{});
+    
+    // Initialize debugger
+    var debugger = Debugger.init(allocator);
+    defer debugger.deinit();
+    
+    debugger.setDebugMode(true);
+    
+    // Parse the input file to generate debug info
+    const file_content = std.fs.cwd().readFileAlloc(allocator, input_file, 1024 * 1024) catch |err| {
+        print("Error reading file {s}: {}\n", .{ input_file, err });
+        return;
+    };
+    defer allocator.free(file_content);
+    
+    var sirs_parser = SirsParser.Parser.init(allocator);
+    
+    var program = sirs_parser.parse(file_content) catch |err| {
+        print("Error parsing file {s}: {}\n", .{ input_file, err });
+        return;
+    };
+    
+    // Generate debug information
+    var debug_info_gen = DebugInfoGenerator.init(allocator, &debugger);
+    debug_info_gen.generateDebugInfo(&program, input_file) catch |err| {
+        print("Error generating debug info: {}\n", .{err});
+        return;
+    };
+    
+    print("Debug symbols loaded for {d} functions\n", .{program.functions.count()});
+    
+    // Interactive debugging loop
+    const stdin = std.io.getStdIn().reader();
+    var input_buffer: [256]u8 = undefined;
+    
+    while (true) {
+        print("sever-debug> ", .{});
+        
+        if (try stdin.readUntilDelimiterOrEof(input_buffer[0..], '\n')) |input| {
+            const trimmed_input = std.mem.trim(u8, input, " \t\r\n");
+            
+            if (std.mem.eql(u8, trimmed_input, "exit") or std.mem.eql(u8, trimmed_input, "quit")) {
+                print("Goodbye!\n", .{});
+                break;
+            }
+            
+            if (trimmed_input.len == 0) continue;
+            
+            debugger.processDebugCommand(trimmed_input);
+        } else {
+            break;
+        }
+    }
+}
+
+fn lintCommand(allocator: Allocator, input_file: []const u8) !void {
+    print("Linting Sever program: {s}\n", .{input_file});
+    
+    // Parse the input file
+    const file_content = std.fs.cwd().readFileAlloc(allocator, input_file, 1024 * 1024) catch |err| {
+        print("Error reading file {s}: {}\n", .{ input_file, err });
+        return;
+    };
+    defer allocator.free(file_content);
+    
+    var sirs_parser = SirsParser.Parser.init(allocator);
+    
+    var program = sirs_parser.parse(file_content) catch |err| {
+        print("Error parsing file {s}: {}\n", .{ input_file, err });
+        return;
+    };
+    
+    // Initialize linter with default config
+    const config = LintConfig{};
+    var linter = Linter.init(allocator, config);
+    defer linter.deinit();
+    
+    // Run linting
+    linter.lint(&program, input_file) catch |err| {
+        print("Error during linting: {}\n", .{err});
+        return;
+    };
+    
+    // Print results
+    print("\n", .{});
+    linter.printIssues();
+    
+    // Return non-zero exit code if there are errors
+    const issues = linter.getIssues();
+    var has_errors = false;
+    for (issues) |issue| {
+        if (issue.severity == .@"error") {
+            has_errors = true;
+            break;
+        }
+    }
+    
+    if (has_errors) {
+        std.process.exit(1);
+    }
 }

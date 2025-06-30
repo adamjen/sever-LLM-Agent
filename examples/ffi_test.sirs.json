@@ -1,0 +1,153 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "=== FFI Testing ==="}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Testing memory allocation and manipulation..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "memory_ptr",
+              "type": "i64",
+              "value": {
+                "call": {
+                  "function": "ffi_alloc_bytes",
+                  "args": [{"literal": 32}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Allocated 32 bytes of memory"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "memory_ptr"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "ffi_write_i32",
+                "args": [{"var": "memory_ptr"}, {"literal": 42}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Written value 42 to memory"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "read_value",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "ffi_read_i32",
+                  "args": [{"var": "memory_ptr"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Read value from memory:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "read_value"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "ffi_write_str",
+                "args": [{"var": "memory_ptr"}, {"literal": "Hello FFI!"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "read_str",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "ffi_read_str",
+                  "args": [{"var": "memory_ptr"}, {"literal": 10}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Read string from memory:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "read_str"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "ffi_free_bytes",
+                "args": [{"var": "memory_ptr"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Memory freed. FFI test complete!"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

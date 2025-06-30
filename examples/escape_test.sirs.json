@@ -1,0 +1,28 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "let": {
+              "name": "pattern",
+              "type": "str",
+              "value": {"literal": "\\d+"}
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "pattern"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

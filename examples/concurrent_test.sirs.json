@@ -1,0 +1,139 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "fetchDataA": {
+        "args": [],
+        "return": "str",
+        "async": true,
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Starting fetch A..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "data",
+              "value": {"literal": "Data from source A"}
+            }
+          },
+          {
+            "return": {"var": "data"}
+          }
+        ]
+      },
+      "fetchDataB": {
+        "args": [],
+        "return": "str",
+        "async": true,
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Starting fetch B..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "data",
+              "value": {"literal": "Data from source B"}
+            }
+          },
+          {
+            "return": {"var": "data"}
+          }
+        ]
+      },
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Starting concurrent operations..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "futureA",
+              "value": {
+                "call": {
+                  "function": "fetchDataA",
+                  "args": []
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "futureB",
+              "value": {
+                "call": {
+                  "function": "fetchDataB",
+                  "args": []
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Waiting for results..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "resultA",
+              "value": {
+                "await": {"var": "futureA"}
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "resultB",
+              "value": {
+                "await": {"var": "futureB"}
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "resultA"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "resultB"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "All operations completed!"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

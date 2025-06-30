@@ -62,7 +62,9 @@ pub const Type = union(enum) {
     function: struct {
         args: ArrayList(Type),
         @"return": *Type,
+        @"async": bool = false,
     },
+    future: *Type, // Future/Promise type for async values
     distribution: struct {
         kind: DistributionKind,
         param_types: ArrayList(Type),
@@ -145,6 +147,7 @@ pub const Expression = union(enum) {
         type_name: []const u8, // record type name
         fields: std.StringHashMap(Expression), // field assignments
     },
+    @"await": *Expression, // await expression for async operations
 };
 
 pub const OpKind = enum {
@@ -251,6 +254,7 @@ pub const Function = struct {
     body: ArrayList(Statement),
     @"inline": bool = false,
     pure: bool = false,
+    @"async": bool = false, // async function marker
     type_params: ?ArrayList([]const u8) = null, // generic type parameters
 };
 
@@ -463,6 +467,10 @@ pub const Program = struct {
             .optional => |opt_type| {
                 self.deallocateType(opt_type);
                 self.allocator.destroy(opt_type);
+            },
+            .future => |future_type| {
+                self.deallocateType(future_type);
+                self.allocator.destroy(future_type);
             },
             .@"struct" => |*struct_fields| {
                 var field_iter = struct_fields.iterator();
@@ -779,6 +787,11 @@ pub const Program = struct {
                 }
                 record_expr.fields.deinit();
             },
+            .@"await" => |await_expr| {
+                // Free the inner expression pointer
+                self.deallocateExpression(await_expr);
+                self.allocator.destroy(await_expr);
+            },
             else => {},
         }
     }
@@ -967,6 +980,10 @@ pub const Parser = struct {
             if (pure_obj == .bool) function.pure = pure_obj.bool;
         }
         
+        if (func_obj.object.get("async")) |async_obj| {
+            if (async_obj == .bool) function.@"async" = async_obj.bool;
+        }
+        
         return function;
     }
     
@@ -1068,6 +1085,14 @@ pub const Parser = struct {
                         .type_args = type_args,
                     }
                 };
+            }
+            
+            // Handle future type: {"future": "i32"}
+            if (type_obj.object.get("future")) |future_obj| {
+                const inner_type = try self.parseType(future_obj);
+                const type_ptr = try self.allocator.create(Type);
+                type_ptr.* = inner_type;
+                return Type{ .future = type_ptr };
             }
             
             // Handle trait object: {"trait": {"name": "Display", "args": ["T"]}}
@@ -1583,6 +1608,14 @@ pub const Parser = struct {
         // Handle record expressions
         if (expr_obj.object.get("record")) |record_obj| {
             return try self.parseRecordExpression(record_obj);
+        }
+        
+        // Handle await expressions
+        if (expr_obj.object.get("await")) |await_obj| {
+            const inner_expr = try self.parseExpression(await_obj);
+            const expr_ptr = self.allocator.create(Expression) catch return SirsError.OutOfMemory;
+            expr_ptr.* = inner_expr;
+            return Expression{ .@"await" = expr_ptr };
         }
         
         return SirsError.InvalidExpression;

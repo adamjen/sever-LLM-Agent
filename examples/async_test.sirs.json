@@ -1,0 +1,56 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "fetchData": {
+        "args": [],
+        "return": "str",
+        "async": true,
+        "body": [
+          {
+            "let": {
+              "name": "data",
+              "value": {"literal": "Async data fetched!"}
+            }
+          },
+          {
+            "return": {"var": "data"}
+          }
+        ]
+      },
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "let": {
+              "name": "future_data",
+              "value": {
+                "call": {
+                  "function": "fetchData",
+                  "args": []
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "result",
+              "value": {
+                "await": {"var": "future_data"}
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "result"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

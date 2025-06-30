@@ -467,6 +467,11 @@ pub const CirLowering = struct {
             .record => |*record_expr| {
                 return try self.lowerRecord(record_expr);
             },
+            .@"await" => |await_expr| {
+                // For await expressions, we simply lower the inner expression
+                // In a full async implementation, this would handle async frames
+                return try self.lowerExpression(await_expr);
+            },
             else => {
                 try self.error_reporter.reportError(null, "Unsupported expression type in CIR lowering", .{});
                 return CirError.UnsupportedOperation;

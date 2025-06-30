@@ -89,6 +89,10 @@
         "pure": {
           "type": "boolean",
           "default": false
+        },
+        "async": {
+          "type": "boolean",
+          "default": false
         }
       }
     },
@@ -163,9 +167,16 @@
                   "type": "array",
                   "items": {"$ref": "#/definitions/Type"}
                 },
-                "return": {"$ref": "#/definitions/Type"}
+                "return": {"$ref": "#/definitions/Type"},
+                "async": {"type": "boolean", "default": false}
               }
             }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "future": {"$ref": "#/definitions/Type"}
           }
         },
         {
@@ -511,6 +522,12 @@
                 "type": {"$ref": "#/definitions/Type"}
               }
             }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "await": {"$ref": "#/definitions/Expression"}
           }
         }
       ]

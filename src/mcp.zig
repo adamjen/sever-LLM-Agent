@@ -9,6 +9,9 @@ const TypeChecker = @import("typechecker.zig").TypeChecker;
 const ErrorReporter = @import("error_reporter.zig").ErrorReporter;
 const CirLowering = @import("cir.zig").CirLowering;
 const OptimizationManager = @import("optimization.zig").OptimizationManager;
+const MCP_AST_TOOLS = @import("mcp_ast_tools.zig").MCP_AST_TOOLS;
+const MCP_DEPENDENCY_TOOLS = @import("mcp_dependency_tools.zig").MCP_DEPENDENCY_TOOLS;
+const MCP_DISTRIBUTION_TOOLS = @import("mcp_distribution_tools.zig").MCP_DISTRIBUTION_TOOLS;
 
 pub const McpServer = struct {
     allocator: Allocator,
@@ -197,6 +200,278 @@ pub const McpServer = struct {
             \\      },
             \\      "required": ["program"]
             \\    }
+            \\  },
+            \\  {
+            \\    "name": "query_functions",
+            \\    "description": "Find functions in Sever code matching a pattern",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"},
+            \\        "pattern": {"type": "string", "description": "Optional pattern to match function names"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "query_variables",
+            \\    "description": "Find variables in Sever code matching a pattern",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"},
+            \\        "pattern": {"type": "string", "description": "Optional pattern to match variable names"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "query_function_calls",
+            \\    "description": "Find function calls in Sever code matching a pattern",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"},
+            \\        "pattern": {"type": "string", "description": "Optional pattern to match function call names"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "get_function_info",
+            \\    "description": "Get detailed information about a specific function",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"},
+            \\        "function_name": {"type": "string", "description": "Name of the function to analyze"}
+            \\      },
+            \\      "required": ["sirs_content", "function_name"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "rename_function",
+            \\    "description": "Rename a function and update all references",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to modify"},
+            \\        "old_name": {"type": "string", "description": "Current function name"},
+            \\        "new_name": {"type": "string", "description": "New function name"}
+            \\      },
+            \\      "required": ["sirs_content", "old_name", "new_name"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "add_function",
+            \\    "description": "Add a new function to the program",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to modify"},
+            \\        "function_name": {"type": "string", "description": "Name of the new function"},
+            \\        "parameters": {"type": "array", "description": "Function parameters"},
+            \\        "return_type": {"type": "string", "description": "Return type"}
+            \\      },
+            \\      "required": ["sirs_content", "function_name", "return_type"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "remove_function",
+            \\    "description": "Remove a function from the program",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to modify"},
+            \\        "function_name": {"type": "string", "description": "Name of the function to remove"}
+            \\      },
+            \\      "required": ["sirs_content", "function_name"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "analyze_complexity",
+            \\    "description": "Analyze code complexity metrics",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "analyze_dependencies",
+            \\    "description": "Perform comprehensive dependency analysis on a Sever program",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"},
+            \\        "include_metrics": {"type": "boolean", "description": "Include complexity metrics in output"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "find_circular_dependencies",
+            \\    "description": "Detect circular dependencies in the code",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "find_unused_functions",
+            \\    "description": "Find functions that are never called",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "get_dependency_graph",
+            \\    "description": "Get the dependency graph visualization",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"},
+            \\        "format": {"type": "string", "enum": ["json", "dot", "mermaid"], "description": "Output format"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "analyze_function_dependencies",
+            \\    "description": "Analyze dependencies for a specific function",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"},
+            \\        "function_name": {"type": "string", "description": "Name of the function to analyze"}
+            \\      },
+            \\      "required": ["sirs_content", "function_name"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "check_dependency_health",
+            \\    "description": "Check overall dependency health and provide recommendations",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "get_reachability_analysis",
+            \\    "description": "Analyze code reachability from entry point",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content to analyze"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "create_custom_distribution",
+            \\    "description": "Create a new custom probability distribution",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "name": {"type": "string", "description": "Name of the distribution"},
+            \\        "parameters": {"type": "array", "description": "Distribution parameters"},
+            \\        "support_type": {"type": "string", "description": "Type of support"},
+            \\        "log_prob_function": {"type": "string", "description": "Log probability function name"}
+            \\      },
+            \\      "required": ["name", "parameters", "support_type", "log_prob_function"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "compile_distributions_from_sirs",
+            \\    "description": "Extract and compile distribution definitions from SIRS code",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "sirs_content": {"type": "string", "description": "SIRS JSON content containing distribution definitions"}
+            \\      },
+            \\      "required": ["sirs_content"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "list_distributions",
+            \\    "description": "List all available distributions (built-in and custom)",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "include_builtin": {"type": "boolean", "description": "Include built-in distributions"},
+            \\        "include_custom": {"type": "boolean", "description": "Include custom distributions"}
+            \\      }
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "get_distribution_info",
+            \\    "description": "Get detailed information about a specific distribution",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "distribution_name": {"type": "string", "description": "Name of the distribution"}
+            \\      },
+            \\      "required": ["distribution_name"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "validate_distribution_parameters",
+            \\    "description": "Validate parameters for a distribution",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "distribution_name": {"type": "string", "description": "Name of the distribution"},
+            \\        "parameters": {"type": "object", "description": "Parameter values to validate"}
+            \\      },
+            \\      "required": ["distribution_name", "parameters"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "generate_distribution_code",
+            \\    "description": "Generate SIRS code for a distribution",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "distribution_name": {"type": "string", "description": "Name of the distribution"},
+            \\        "include_examples": {"type": "boolean", "description": "Include usage examples"}
+            \\      },
+            \\      "required": ["distribution_name"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "create_mixture_distribution",
+            \\    "description": "Create a mixture of existing distributions",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "name": {"type": "string", "description": "Name of the mixture distribution"},
+            \\        "components": {"type": "array", "description": "Array of distribution components with weights"}
+            \\      },
+            \\      "required": ["name", "components"]
+            \\    }
+            \\  },
+            \\  {
+            \\    "name": "validate_distribution_definition",
+            \\    "description": "Validate a distribution definition for correctness",
+            \\    "inputSchema": {
+            \\      "type": "object",
+            \\      "properties": {
+            \\        "distribution_name": {"type": "string", "description": "Name of the distribution to validate"}
+            \\      },
+            \\      "required": ["distribution_name"]
+            \\    }
             \\  }
             \\]
         ;
@@ -242,6 +517,52 @@ pub const McpServer = struct {
             try self.handleOptimizeAnalysisTool(writer, id, arguments);
         } else if (std.mem.eql(u8, tool_name, "function_info")) {
             try self.handleFunctionInfoTool(writer, id, arguments);
+        } else if (std.mem.eql(u8, tool_name, "query_functions")) {
+            try self.handleASTTool(writer, id, arguments, 0);
+        } else if (std.mem.eql(u8, tool_name, "query_variables")) {
+            try self.handleASTTool(writer, id, arguments, 1);
+        } else if (std.mem.eql(u8, tool_name, "query_function_calls")) {
+            try self.handleASTTool(writer, id, arguments, 2);
+        } else if (std.mem.eql(u8, tool_name, "get_function_info")) {
+            try self.handleASTTool(writer, id, arguments, 3);
+        } else if (std.mem.eql(u8, tool_name, "rename_function")) {
+            try self.handleASTTool(writer, id, arguments, 4);
+        } else if (std.mem.eql(u8, tool_name, "add_function")) {
+            try self.handleASTTool(writer, id, arguments, 5);
+        } else if (std.mem.eql(u8, tool_name, "remove_function")) {
+            try self.handleASTTool(writer, id, arguments, 6);
+        } else if (std.mem.eql(u8, tool_name, "analyze_complexity")) {
+            try self.handleASTTool(writer, id, arguments, 7);
+        } else if (std.mem.eql(u8, tool_name, "analyze_dependencies")) {
+            try self.handleDependencyTool(writer, id, arguments, 0);
+        } else if (std.mem.eql(u8, tool_name, "find_circular_dependencies")) {
+            try self.handleDependencyTool(writer, id, arguments, 1);
+        } else if (std.mem.eql(u8, tool_name, "find_unused_functions")) {
+            try self.handleDependencyTool(writer, id, arguments, 2);
+        } else if (std.mem.eql(u8, tool_name, "get_dependency_graph")) {
+            try self.handleDependencyTool(writer, id, arguments, 3);
+        } else if (std.mem.eql(u8, tool_name, "analyze_function_dependencies")) {
+            try self.handleDependencyTool(writer, id, arguments, 4);
+        } else if (std.mem.eql(u8, tool_name, "check_dependency_health")) {
+            try self.handleDependencyTool(writer, id, arguments, 5);
+        } else if (std.mem.eql(u8, tool_name, "get_reachability_analysis")) {
+            try self.handleDependencyTool(writer, id, arguments, 6);
+        } else if (std.mem.eql(u8, tool_name, "create_custom_distribution")) {
+            try self.handleDistributionTool(writer, id, arguments, 0);
+        } else if (std.mem.eql(u8, tool_name, "compile_distributions_from_sirs")) {
+            try self.handleDistributionTool(writer, id, arguments, 1);
+        } else if (std.mem.eql(u8, tool_name, "list_distributions")) {
+            try self.handleDistributionTool(writer, id, arguments, 2);
+        } else if (std.mem.eql(u8, tool_name, "get_distribution_info")) {
+            try self.handleDistributionTool(writer, id, arguments, 3);
+        } else if (std.mem.eql(u8, tool_name, "validate_distribution_parameters")) {
+            try self.handleDistributionTool(writer, id, arguments, 4);
+        } else if (std.mem.eql(u8, tool_name, "generate_distribution_code")) {
+            try self.handleDistributionTool(writer, id, arguments, 5);
+        } else if (std.mem.eql(u8, tool_name, "create_mixture_distribution")) {
+            try self.handleDistributionTool(writer, id, arguments, 6);
+        } else if (std.mem.eql(u8, tool_name, "validate_distribution_definition")) {
+            try self.handleDistributionTool(writer, id, arguments, 7);
         } else {
             try self.sendError(writer, id, -32602, "Unknown tool");
         }
@@ -704,6 +1025,75 @@ pub const McpServer = struct {
         try writer.writeAll("}]}}\n");
     }
     
+    fn handleASTTool(self: *McpServer, writer: anytype, id: ?json.Value, arguments: ?json.Value, tool_index: usize) !void {
+        if (arguments == null or arguments.? != .object) {
+            try self.sendError(writer, id, -32602, "Missing arguments");
+            return;
+        }
+        
+        // Call the appropriate AST tool handler
+        const result = MCP_AST_TOOLS[tool_index].handler(self.allocator, arguments.?) catch |err| {
+            const error_msg = try std.fmt.allocPrint(self.allocator, "AST tool error: {s}", .{@errorName(err)});
+            defer self.allocator.free(error_msg);
+            try self.sendError(writer, id, -32003, error_msg);
+            return;
+        };
+        defer self.allocator.free(result);
+        
+        // Write successful response
+        try writer.writeAll("{\"jsonrpc\":\"2.0\",\"id\":");
+        try json.stringify(id, .{}, writer);
+        try writer.writeAll(",\"result\":{\"content\":[{\"type\":\"text\",\"text\":");
+        try json.stringify(result, .{}, writer);
+        try writer.writeAll("}]}}\n");
+    }
+    
+    fn handleDependencyTool(self: *McpServer, writer: anytype, id: ?json.Value, arguments: ?json.Value, tool_index: usize) !void {
+        if (arguments == null or arguments.? != .object) {
+            try self.sendError(writer, id, -32602, "Missing arguments");
+            return;
+        }
+        
+        // Call the appropriate dependency tool handler
+        const result = MCP_DEPENDENCY_TOOLS[tool_index].handler(self.allocator, arguments.?) catch |err| {
+            const error_msg = try std.fmt.allocPrint(self.allocator, "Dependency tool error: {s}", .{@errorName(err)});
+            defer self.allocator.free(error_msg);
+            try self.sendError(writer, id, -32004, error_msg);
+            return;
+        };
+        defer self.allocator.free(result);
+        
+        // Write successful response
+        try writer.writeAll("{\"jsonrpc\":\"2.0\",\"id\":");
+        try json.stringify(id, .{}, writer);
+        try writer.writeAll(",\"result\":{\"content\":[{\"type\":\"text\",\"text\":");
+        try json.stringify(result, .{}, writer);
+        try writer.writeAll("}]}}\n");
+    }
+    
+    fn handleDistributionTool(self: *McpServer, writer: anytype, id: ?json.Value, arguments: ?json.Value, tool_index: usize) !void {
+        if (arguments == null or arguments.? != .object) {
+            try self.sendError(writer, id, -32602, "Missing arguments");
+            return;
+        }
+        
+        // Call the appropriate distribution tool handler
+        const result = MCP_DISTRIBUTION_TOOLS[tool_index].handler(self.allocator, arguments.?) catch |err| {
+            const error_msg = try std.fmt.allocPrint(self.allocator, "Distribution tool error: {s}", .{@errorName(err)});
+            defer self.allocator.free(error_msg);
+            try self.sendError(writer, id, -32005, error_msg);
+            return;
+        };
+        defer self.allocator.free(result);
+        
+        // Write successful response
+        try writer.writeAll("{\"jsonrpc\":\"2.0\",\"id\":");
+        try json.stringify(id, .{}, writer);
+        try writer.writeAll(",\"result\":{\"content\":[{\"type\":\"text\",\"text\":");
+        try json.stringify(result, .{}, writer);
+        try writer.writeAll("}]}}\n");
+    }
+    
     /// Helper functions for analysis
     fn analyzeStatementComplexity(self: *McpServer, stmt: *SirsParser.Statement) !u32 {
         _ = self;
@@ -779,6 +1169,7 @@ pub const McpServer = struct {
             .record => |r| r.name,
             .optional => "Optional",
             .function => "Function",
+            .future => "Future",
             .distribution => "Distribution",
             .type_parameter => |tp| tp,
             .generic_instance => |g| g.base_type,

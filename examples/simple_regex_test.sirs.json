@@ -1,0 +1,100 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "=== Simple Regex Testing ==="}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "text",
+              "type": "str",
+              "value": {"literal": "Hello 123 world"}
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Original text:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "text"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "found_hello",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "regex_find",
+                  "args": [{"var": "text"}, {"literal": "Hello"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Found 'Hello':"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "found_hello"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "replaced",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "regex_replace",
+                  "args": [{"var": "text"}, {"literal": "Hello"}, {"literal": "Hi"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Replaced text:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "replaced"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

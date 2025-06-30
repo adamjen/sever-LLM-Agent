@@ -1,0 +1,248 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "BadlyNamedFunction": {
+        "args": [
+          {"name": "VeryLongParameterName", "type": "i32"},
+          {"name": "AnotherBadName", "type": "i32"},
+          {"name": "UnusedParam", "type": "i32"},
+          {"name": "YetAnotherParam", "type": "i32"},
+          {"name": "TooManyParams", "type": "i32"},
+          {"name": "SixthParam", "type": "i32"}
+        ],
+        "return": "i32",
+        "body": [
+          {
+            "if": {
+              "condition": {
+                "op": {
+                  "kind": "gt",
+                  "args": [
+                    {"var": "VeryLongParameterName"},
+                    {"literal": 0}
+                  ]
+                }
+              },
+              "then": [
+                {
+                  "if": {
+                    "condition": {
+                      "op": {
+                        "kind": "gt", 
+                        "args": [
+                          {"var": "AnotherBadName"},
+                          {"literal": 10}
+                        ]
+                      }
+                    },
+                    "then": [
+                      {
+                        "if": {
+                          "condition": {
+                            "op": {
+                              "kind": "lt",
+                              "args": [
+                                {"var": "YetAnotherParam"},
+                                {"literal": 100}
+                              ]
+                            }
+                          },
+                          "then": [
+                            {
+                              "if": {
+                                "condition": {
+                                  "op": {
+                                    "kind": "eq",
+                                    "args": [
+                                      {"var": "TooManyParams"},
+                                      {"literal": 42}
+                                    ]
+                                  }
+                                },
+                                "then": [
+                                  {
+                                    "if": {
+                                      "condition": {
+                                        "op": {
+                                          "kind": "ne",
+                                          "args": [
+                                            {"var": "SixthParam"},
+                                            {"literal": 0}
+                                          ]
+                                        }
+                                      },
+                                      "then": [
+                                        {
+                                          "return": {"literal": 1}
+                                        }
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "let": {
+              "name": "result",
+              "type": "i32",
+              "value": {
+                "op": {
+                  "kind": "add",
+                  "args": [
+                    {"var": "VeryLongParameterName"},
+                    {"var": "AnotherBadName"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "string_concat",
+                "args": [{"literal": "Hello"}, {"literal": "World"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "string_concat",
+                "args": [{"literal": "More"}, {"literal": "Concatenation"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "string_concat",
+                "args": [{"literal": "Even"}, {"literal": "More"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "string_concat",
+                "args": [{"literal": "Too"}, {"literal": "Much"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "string_concat",
+                "args": [{"literal": "String"}, {"literal": "Concat"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "string_concat",
+                "args": [{"literal": "Excessive"}, {"literal": "Usage"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "file_read",
+                "args": [{"literal": "/etc/passwd"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "http_get",
+                "args": [{"literal": "http://example.com/api"}]
+              }
+            }
+          },
+          {
+            "return": {"var": "result"}
+          }
+        ]
+      },
+      "unused_function": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "This function is never called"}]
+              }
+            }
+          }
+        ]
+      },
+      "empty_function": {
+        "args": [],
+        "return": "void",
+        "body": []
+      },
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "=== Lint Testing ==="}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "test_result",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "BadlyNamedFunction",
+                  "args": [
+                    {"literal": 5},
+                    {"literal": 15},
+                    {"literal": 25},
+                    {"literal": 35},
+                    {"literal": 42},
+                    {"literal": 1}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Result:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "test_result"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

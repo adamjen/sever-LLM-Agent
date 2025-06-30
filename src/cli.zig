@@ -10,7 +10,9 @@ pub fn printUsage() !void {
     print("  doc <file.sirs.json>      Generate documentation for SIRS program\n", .{});
     print("  fmt <file.sirs.json>      Format SIRS program with consistent style\n", .{});
     print("  repl                      Start interactive REPL mode\n", .{});
-    print("  serve                     Start MCP server for LLM integration\n\n", .{});
+    print("  serve                     Start MCP server for LLM integration\n", .{});
+    print("  debug <file.sirs.json>    Start interactive debugger for SIRS program\n", .{});
+    print("  lint <file.sirs.json>     Run linter and static analysis on SIRS program\n\n", .{});
     print("Examples:\n", .{});
     print("  sev build program.sirs.json\n", .{});
     print("  sev test program.sirs.json\n", .{});
@@ -18,4 +20,6 @@ pub fn printUsage() !void {
     print("  sev fmt program.sirs.json\n", .{});
     print("  sev repl\n", .{});
     print("  sev serve\n", .{});
+    print("  sev debug program.sirs.json\n", .{});
+    print("  sev lint program.sirs.json\n", .{});
 }

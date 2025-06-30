@@ -1,0 +1,257 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "=== Date/Time Testing ==="}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "now",
+              "type": "i64",
+              "value": {
+                "call": {
+                  "function": "datetime_now",
+                  "args": []
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Current timestamp:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "now"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "year",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "datetime_year",
+                  "args": [{"var": "now"}]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "month",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "datetime_month",
+                  "args": [{"var": "now"}]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "day",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "datetime_day",
+                  "args": [{"var": "now"}]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "hour",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "datetime_hour",
+                  "args": [{"var": "now"}]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "minute",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "datetime_minute",
+                  "args": [{"var": "now"}]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "second",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "datetime_second",
+                  "args": [{"var": "now"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Date/Time components:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "year"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "month"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "day"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "hour"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "minute"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "second"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "future_time",
+              "type": "i64",
+              "value": {
+                "call": {
+                  "function": "datetime_add_hours",
+                  "args": [{"var": "now"}, {"literal": 5}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Time + 5 hours:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "future_time"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "diff",
+              "type": "i64",
+              "value": {
+                "call": {
+                  "function": "datetime_diff_seconds",
+                  "args": [{"var": "future_time"}, {"var": "now"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Time difference (seconds):"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "diff"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Sleeping for 1 second..."}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "sleep_seconds",
+                "args": [{"literal": 1}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Sleep complete!"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

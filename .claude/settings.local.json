@@ -52,7 +52,16 @@
       "Bash(./dist/sev test:*)",
       "Bash(./dist/sev doc examples/simple_math.sirs.json)",
       "Bash(./dist/sev doc examples/string_test.sirs.json)",
-      "Bash(./dist/sev:*)"
+      "Bash(./dist/sev:*)",
+      "Bash(./dist/async_test)",
+      "Bash(./dist/concurrent_test)",
+      "Bash(./dist/channel_test)",
+      "Bash(./dist/datetime_test)",
+      "Bash(./dist/simple_regex_test)",
+      "Bash(./dist/ffi_test)",
+      "Bash(./dist/optimization_test)",
+      "Bash(./dist/debug_test)",
+      "Bash(zig test:*)"
     ],
     "deny": []
   }

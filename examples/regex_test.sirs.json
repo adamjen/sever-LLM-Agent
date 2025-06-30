@@ -1,0 +1,203 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "=== Regular Expression Testing ==="}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "text",
+              "type": "str",
+              "value": {"literal": "Hello 123 world 456 test"}
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Original text:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "text"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "has_digits",
+              "type": "bool",
+              "value": {
+                "call": {
+                  "function": "regex_match",
+                  "args": [{"literal": "123"}, {"literal": "\\d+"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Does '123' match \\d+ pattern?"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "found_digit",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "regex_find",
+                  "args": [{"var": "text"}, {"literal": "\\d+"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "First digit sequence found:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "found_digit"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "replaced_text",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "regex_replace",
+                  "args": [{"var": "text"}, {"literal": "\\d+"}, {"literal": "NUMBER"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Text with digits replaced:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "replaced_text"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "word_text",
+              "type": "str",
+              "value": {"literal": "hello_world123"}
+            }
+          },
+          {
+            "let": {
+              "name": "is_word",
+              "type": "bool",
+              "value": {
+                "call": {
+                  "function": "regex_match",
+                  "args": [{"var": "word_text"}, {"literal": "\\w+"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Is 'hello_world123' a word pattern?"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "literal_match",
+              "type": "bool",
+              "value": {
+                "call": {
+                  "function": "regex_match",
+                  "args": [{"var": "text"}, {"literal": "world"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Does text contain 'world'?"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "split_result",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "regex_split",
+                  "args": [{"var": "text"}, {"literal": " "}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Split on space (first part):"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "split_result"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Regex testing complete!"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

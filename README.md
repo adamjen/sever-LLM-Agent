@@ -52,7 +52,7 @@ zig build
 - **Control structures**: If/else, while/for loops, match expressions
 
 ### Probabilistic Programming
-Built-in support for statistical computing with native distributions and sampling
+Built-in support for statistical computing with native distributions, custom distribution definitions, and advanced sampling capabilities
 
 ### Comprehensive Standard Library
 - **HTTP client**: `http_get`, `http_post`, `http_put`, `http_delete`
@@ -145,12 +145,43 @@ The compiler includes advanced optimization passes:
 
 ### MCP Integration
 Sever includes a comprehensive Model Context Protocol server that exposes advanced tools for LLMs:
+
+**Core Compilation Tools:**
 - `compile` - Compile SIRS programs with detailed analysis
 - `type_check` - Comprehensive type checking with error reporting
 - `infer_type` - Infer types of SIRS expressions
 - `analyze_program` - Comprehensive program analysis with complexity metrics
 - `optimize_analysis` - Analyze optimization opportunities with estimated benefits
 - `function_info` - Detailed function parameter and signature analysis
+
+**AST Analysis and Manipulation Tools:**
+- `query_functions` - Find functions matching patterns with detailed metadata
+- `query_variables` - Locate and analyze variable usage throughout code
+- `query_function_calls` - Track function call relationships and dependencies
+- `get_function_info` - Extract comprehensive function signatures and properties
+- `rename_function` - Safely rename functions across the entire codebase
+- `add_function` - Insert new functions with proper signature validation
+- `remove_function` - Delete functions while checking for dependencies
+- `analyze_complexity` - Calculate cyclomatic complexity and maintainability metrics
+
+**Dependency Analysis Tools:**
+- `analyze_dependencies` - Comprehensive dependency mapping with health metrics
+- `find_circular_dependencies` - Detect and analyze circular references with break suggestions
+- `find_unused_functions` - Identify dead code and optimization opportunities
+- `get_dependency_graph` - Generate visual dependency graphs (JSON, DOT, Mermaid formats)
+- `analyze_function_dependencies` - Deep-dive into specific function relationships
+- `check_dependency_health` - Overall codebase health scoring and recommendations
+- `get_reachability_analysis` - Analyze code reachability from entry points
+
+**Custom Distribution Tools (Probabilistic Programming):**
+- `create_custom_distribution` - Define new probability distributions with parameters and constraints
+- `compile_distributions_from_sirs` - Extract distribution definitions from existing SIRS code
+- `list_distributions` - Browse all available built-in and custom distributions
+- `get_distribution_info` - Detailed distribution properties, parameters, and usage examples
+- `validate_distribution_parameters` - Check parameter validity against distribution constraints
+- `generate_distribution_code` - Generate SIRS implementation code for distributions
+- `create_mixture_distribution` - Compose mixture models from existing distributions
+- `validate_distribution_definition` - Verify distribution mathematical correctness
 
 ### Interactive Development
 - **REPL Mode** - Interactive evaluation of SIRS expressions with JSON syntax
@@ -225,7 +256,7 @@ zig build --prefix /usr/local install
 
 Built-in support for statistical computing:
 
-Supported distributions:
+**Built-in Distributions:**
 - `uniform(min, max)` - Uniform distribution
 - `normal(mean, std)` - Normal/Gaussian distribution  
 - `bernoulli(p)` - Bernoulli distribution
@@ -233,6 +264,17 @@ Supported distributions:
 - `exponential(rate)` - Exponential distribution
 - `gamma(shape, scale)` - Gamma distribution
 - `beta(alpha, beta)` - Beta distribution
+
+**Custom Distribution System:**
+- **Distribution Builder** - Fluent API for defining custom probability distributions
+- **Parameter Constraints** - Type-safe parameter validation with bounds, positivity, and custom validators
+- **Support Specification** - Define mathematical domains (real line, positive real, unit interval, discrete sets, etc.)
+- **Parameter Transformations** - Built-in transformations (log, exp, logit, sigmoid, softmax, Cholesky)
+- **Exponential Family Support** - Sufficient statistics and natural parameter specifications
+- **Mixture Models** - Compose distributions with weighted components
+- **Example Distributions** - Pre-built: Beta-Binomial, Gaussian Mixture, Student's t, Dirichlet
+- **Code Generation** - Automatic SIRS code generation from distribution definitions
+- **Validation Framework** - Mathematical correctness checking and constraint verification
 
 Built-in functions:
 - `std_print(message: str)` - Print string
@@ -291,7 +333,17 @@ sever1/
 │   ├── compiler.zig      # Compilation coordinator
 │   ├── cli.zig           # Command-line interface
 │   ├── error_reporter.zig # Error reporting and diagnostics
-│   └── mcp.zig           # MCP server with advanced introspection
+│   ├── mcp.zig           # MCP server with advanced introspection
+│   ├── ast_query.zig     # AST querying and manipulation engine
+│   ├── mcp_ast_tools.zig # MCP tools for AST operations
+│   ├── dependency_analyzer.zig # Code dependency analysis engine
+│   ├── mcp_dependency_tools.zig # MCP tools for dependency analysis
+│   ├── custom_distributions.zig # Custom distribution framework
+│   ├── distribution_compiler.zig # Distribution code compiler
+│   ├── mcp_distribution_tools.zig # MCP tools for probabilistic programming
+│   ├── test_custom_distributions.zig # Distribution system tests
+│   ├── test_mcp_distribution_tools.zig # MCP distribution tool tests
+│   └── test_distribution_compiler.zig # Distribution compiler tests
 ├── runtime/
 │   └── sever_runtime.zig # Probabilistic runtime
 ├── examples/

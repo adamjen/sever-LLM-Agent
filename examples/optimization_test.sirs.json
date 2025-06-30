@@ -1,0 +1,121 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "calculate": {
+        "args": [
+          {"name": "x", "type": "i32"},
+          {"name": "y", "type": "i32"}
+        ],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "constant",
+              "type": "i32",
+              "value": {"literal": 42}
+            }
+          },
+          {
+            "let": {
+              "name": "result1",
+              "type": "i32",
+              "value": {
+                "op": {
+                  "kind": "add",
+                  "args": [
+                    {"var": "x"},
+                    {"var": "constant"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "result2",
+              "type": "i32",
+              "value": {
+                "op": {
+                  "kind": "mul",
+                  "args": [
+                    {"var": "result1"},
+                    {"literal": 2}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "final_result",
+              "type": "i32",
+              "value": {
+                "op": {
+                  "kind": "add",
+                  "args": [
+                    {"var": "result2"},
+                    {"var": "y"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "return": {"var": "final_result"}
+          }
+        ]
+      },
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "=== Optimization Testing ==="}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "result",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "calculate",
+                  "args": [{"literal": 10}, {"literal": 5}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Calculation result:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "result"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Optimizations completed!"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

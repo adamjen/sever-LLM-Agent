@@ -665,6 +665,7 @@ pub const SeverCompiler = struct {
             .record => |r| r.name,
             .optional => "Optional",
             .function => "Function",
+            .future => "Future",
             .distribution => "Distribution",
             .type_parameter => |tp| tp,
             .generic_instance => |g| g.base_type,

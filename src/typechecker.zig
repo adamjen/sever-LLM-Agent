@@ -306,7 +306,13 @@ pub const TypeChecker = struct {
                     }
                 }
                 
-                return function.@"return";
+                // If the function is async, return a future type
+                if (function.@"async") {
+                    const return_type_ptr = try self.createType(function.@"return");
+                    return Type{ .future = return_type_ptr };
+                } else {
+                    return function.@"return";
+                }
             },
             
             .op => |*op_expr| {
@@ -574,6 +580,23 @@ pub const TypeChecker = struct {
                 }
             },
             
+            .@"await" => |await_expr| {
+                // Check the inner expression
+                const inner_type = try self.checkExpression(await_expr, program);
+                
+                // Verify that inner expression returns a future type
+                switch (inner_type) {
+                    .future => |future_type| {
+                        // Await unwraps the future and returns the inner type
+                        return future_type.*;
+                    },
+                    else => {
+                        // Can only await future types
+                        return TypeCheckError.TypeMismatch;
+                    },
+                }
+            },
+            
             else => {
                 // Handle other expression types
                 return Type.void;
@@ -761,6 +784,9 @@ pub const TypeChecker = struct {
         return std.mem.eql(u8, function_name, "std_print") or
                std.mem.eql(u8, function_name, "std_print_int") or
                std.mem.eql(u8, function_name, "std_print_float") or
+               std.mem.eql(u8, function_name, "debug_trace") or
+               std.mem.eql(u8, function_name, "debug_breakpoint") or
+               std.mem.eql(u8, function_name, "debug_variable") or
                std.mem.eql(u8, function_name, "http_get") or
                std.mem.eql(u8, function_name, "http_post") or
                std.mem.eql(u8, function_name, "http_put") or
@@ -791,7 +817,39 @@ pub const TypeChecker = struct {
                std.mem.eql(u8, function_name, "str_to_upper") or
                std.mem.eql(u8, function_name, "str_to_lower") or
                std.mem.eql(u8, function_name, "str_trim") or
-               std.mem.eql(u8, function_name, "str_equals");
+               std.mem.eql(u8, function_name, "str_equals") or
+               std.mem.eql(u8, function_name, "datetime_now") or
+               std.mem.eql(u8, function_name, "datetime_now_millis") or
+               std.mem.eql(u8, function_name, "datetime_now_micros") or
+               std.mem.eql(u8, function_name, "datetime_year") or
+               std.mem.eql(u8, function_name, "datetime_month") or
+               std.mem.eql(u8, function_name, "datetime_day") or
+               std.mem.eql(u8, function_name, "datetime_hour") or
+               std.mem.eql(u8, function_name, "datetime_minute") or
+               std.mem.eql(u8, function_name, "datetime_second") or
+               std.mem.eql(u8, function_name, "datetime_add_seconds") or
+               std.mem.eql(u8, function_name, "datetime_add_minutes") or
+               std.mem.eql(u8, function_name, "datetime_add_hours") or
+               std.mem.eql(u8, function_name, "datetime_add_days") or
+               std.mem.eql(u8, function_name, "datetime_diff_seconds") or
+               std.mem.eql(u8, function_name, "sleep_seconds") or
+               std.mem.eql(u8, function_name, "sleep_millis") or
+               std.mem.eql(u8, function_name, "regex_match") or
+               std.mem.eql(u8, function_name, "regex_find") or
+               std.mem.eql(u8, function_name, "regex_replace") or
+               std.mem.eql(u8, function_name, "regex_split") or
+               std.mem.eql(u8, function_name, "ffi_load_library") or
+               std.mem.eql(u8, function_name, "ffi_unload_library") or
+               std.mem.eql(u8, function_name, "ffi_call_i32") or
+               std.mem.eql(u8, function_name, "ffi_call_f64") or
+               std.mem.eql(u8, function_name, "ffi_call_str") or
+               std.mem.eql(u8, function_name, "ffi_call_void") or
+               std.mem.eql(u8, function_name, "ffi_alloc_bytes") or
+               std.mem.eql(u8, function_name, "ffi_free_bytes") or
+               std.mem.eql(u8, function_name, "ffi_read_i32") or
+               std.mem.eql(u8, function_name, "ffi_write_i32") or
+               std.mem.eql(u8, function_name, "ffi_read_str") or
+               std.mem.eql(u8, function_name, "ffi_write_str");
     }
     
     fn checkBuiltinFunction(self: *TypeChecker, call_expr: anytype, program: *Program) TypeCheckError!Type {
@@ -808,12 +866,12 @@ pub const TypeChecker = struct {
             }
             return Type.void;
         } else if (std.mem.eql(u8, function_name, "std_print_int")) {
-            // std_print_int(value: i32) void
+            // std_print_int(value: i32|i64) void - accepts both i32 and i64
             if (call_expr.args.items.len != 1) {
                 return TypeCheckError.ArgumentCountMismatch;
             }
             const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
-            if (arg_type != .i32) {
+            if (arg_type != .i32 and arg_type != .i64) {
                 return TypeCheckError.ArgumentTypeMismatch;
             }
             return Type.void;
@@ -824,6 +882,43 @@ pub const TypeChecker = struct {
             }
             const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
             if (arg_type != .f64) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.void;
+        } else if (std.mem.eql(u8, function_name, "debug_trace")) {
+            // debug_trace(function_name: []const u8, value: i64) void
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const name_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const value_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (name_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            if (value_type != .i32 and value_type != .i64) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.void;
+        } else if (std.mem.eql(u8, function_name, "debug_breakpoint")) {
+            // debug_breakpoint(file: []const u8, line: i32, message: []const u8) void
+            if (call_expr.args.items.len != 3) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const file_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const line_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            const message_type = try self.checkExpression(@constCast(&call_expr.args.items[2]), program);
+            if (file_type != .str or line_type != .i32 or message_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.void;
+        } else if (std.mem.eql(u8, function_name, "debug_variable")) {
+            // debug_variable(name: []const u8, value: []const u8) void
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const name_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const value_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (name_type != .str or value_type != .str) {
                 return TypeCheckError.ArgumentTypeMismatch;
             }
             return Type.void;
@@ -1151,6 +1246,229 @@ pub const TypeChecker = struct {
                 return TypeCheckError.ArgumentTypeMismatch;
             }
             return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "datetime_now") or
+                   std.mem.eql(u8, function_name, "datetime_now_millis") or
+                   std.mem.eql(u8, function_name, "datetime_now_micros")) {
+            // datetime_now() i64
+            if (call_expr.args.items.len != 0) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            return Type.i64;
+        } else if (std.mem.eql(u8, function_name, "datetime_year") or
+                   std.mem.eql(u8, function_name, "datetime_month") or
+                   std.mem.eql(u8, function_name, "datetime_day") or
+                   std.mem.eql(u8, function_name, "datetime_hour") or
+                   std.mem.eql(u8, function_name, "datetime_minute") or
+                   std.mem.eql(u8, function_name, "datetime_second")) {
+            // datetime_year(timestamp: i64) i32
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .i64) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.i32;
+        } else if (std.mem.eql(u8, function_name, "datetime_add_seconds") or
+                   std.mem.eql(u8, function_name, "datetime_add_minutes") or
+                   std.mem.eql(u8, function_name, "datetime_add_hours") or
+                   std.mem.eql(u8, function_name, "datetime_add_days")) {
+            // datetime_add_seconds(timestamp: i64, amount: i32) i64
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const timestamp_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const amount_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (timestamp_type != .i64 or amount_type != .i32) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.i64;
+        } else if (std.mem.eql(u8, function_name, "datetime_diff_seconds")) {
+            // datetime_diff_seconds(end: i64, start: i64) i64
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const end_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const start_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (end_type != .i64 or start_type != .i64) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.i64;
+        } else if (std.mem.eql(u8, function_name, "sleep_seconds") or
+                   std.mem.eql(u8, function_name, "sleep_millis")) {
+            // sleep_seconds(duration: i32) void
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const duration_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (duration_type != .i32) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.void;
+        } else if (std.mem.eql(u8, function_name, "regex_match")) {
+            // regex_match(text: str, pattern: str) bool
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const text_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const pattern_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (text_type != .str or pattern_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "regex_find") or
+                   std.mem.eql(u8, function_name, "regex_split")) {
+            // regex_find(text: str, pattern: str) str
+            // regex_split(text: str, pattern: str) str
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const text_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const pattern_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (text_type != .str or pattern_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "regex_replace")) {
+            // regex_replace(text: str, pattern: str, replacement: str) str
+            if (call_expr.args.items.len != 3) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const text_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const pattern_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            const replacement_type = try self.checkExpression(@constCast(&call_expr.args.items[2]), program);
+            if (text_type != .str or pattern_type != .str or replacement_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "ffi_load_library") or
+                   std.mem.eql(u8, function_name, "ffi_unload_library")) {
+            // ffi_load_library(path: str) bool
+            // ffi_unload_library(path: str) bool
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const path_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (path_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "ffi_call_i32")) {
+            // ffi_call_i32(lib_path: str, func_name: str, args: array) i32
+            if (call_expr.args.items.len != 3) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const lib_path_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const func_name_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            const args_type = try self.checkExpression(@constCast(&call_expr.args.items[2]), program);
+            if (lib_path_type != .str or func_name_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            // args_type should be an array, but for simplicity we'll allow any type for now
+            _ = args_type;
+            return Type.i32;
+        } else if (std.mem.eql(u8, function_name, "ffi_call_f64")) {
+            // ffi_call_f64(lib_path: str, func_name: str, args: array) f64
+            if (call_expr.args.items.len != 3) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const lib_path_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const func_name_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            const args_type = try self.checkExpression(@constCast(&call_expr.args.items[2]), program);
+            if (lib_path_type != .str or func_name_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            _ = args_type;
+            return Type.f64;
+        } else if (std.mem.eql(u8, function_name, "ffi_call_str")) {
+            // ffi_call_str(lib_path: str, func_name: str, args: array) str
+            if (call_expr.args.items.len != 3) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const lib_path_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const func_name_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            const args_type = try self.checkExpression(@constCast(&call_expr.args.items[2]), program);
+            if (lib_path_type != .str or func_name_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            _ = args_type;
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "ffi_call_void")) {
+            // ffi_call_void(lib_path: str, func_name: str, args: array) void
+            if (call_expr.args.items.len != 3) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const lib_path_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const func_name_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            const args_type = try self.checkExpression(@constCast(&call_expr.args.items[2]), program);
+            if (lib_path_type != .str or func_name_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            _ = args_type;
+            return Type.void;
+        } else if (std.mem.eql(u8, function_name, "ffi_alloc_bytes")) {
+            // ffi_alloc_bytes(size: i32) i64
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const size_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (size_type != .i32) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.i64;
+        } else if (std.mem.eql(u8, function_name, "ffi_free_bytes")) {
+            // ffi_free_bytes(ptr: i64) void
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const ptr_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (ptr_type != .i64) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.void;
+        } else if (std.mem.eql(u8, function_name, "ffi_write_i32")) {
+            // ffi_write_i32(ptr: i64, value: i32) void
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const ptr_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const value_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (ptr_type != .i64 or value_type != .i32) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.void;
+        } else if (std.mem.eql(u8, function_name, "ffi_read_i32")) {
+            // ffi_read_i32(ptr: i64) i32
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const ptr_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (ptr_type != .i64) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.i32;
+        } else if (std.mem.eql(u8, function_name, "ffi_read_str")) {
+            // ffi_read_str(ptr: i64, len: i32) str
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const ptr_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const len_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (ptr_type != .i64 or len_type != .i32) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "ffi_write_str")) {
+            // ffi_write_str(ptr: i64, str: str) void
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const ptr_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const str_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (ptr_type != .i64 or str_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.void;
         }
         
         return TypeCheckError.UndefinedFunction;

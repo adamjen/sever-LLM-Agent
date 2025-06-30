@@ -64,13 +64,16 @@ pub const CodeGen = struct {
         std.fs.cwd().deleteFile(temp_zig_file) catch {};
     }
     
-    fn generateProgram(self: *CodeGen, program: *Program) CodeGenError!void {
+    pub fn generateProgram(self: *CodeGen, program: *Program) CodeGenError!void {
         // Generate standard library imports
         try self.writeLine("const std = @import(\"std\");");
         try self.writeLine("const debug_print = std.debug.print;");
         try self.writeLine("const Allocator = std.mem.Allocator;");
         try self.writeLine("const math = std.math;");
         try self.writeLine("const time = std.time;");
+        try self.writeLine("const Thread = std.Thread;");
+        try self.writeLine("const Mutex = std.Thread.Mutex;");
+        try self.writeLine("const ArrayList = std.ArrayList;");
         try self.writeLine("");
         
         // Generate custom type definitions (enums and errors)
@@ -82,11 +85,18 @@ pub const CodeGen = struct {
         try self.writeLine("var allocator = gpa.allocator();");
         try self.writeLine("var prng = std.Random.DefaultPrng.init(0);");
         try self.writeLine("var random = prng.random();");
+        try self.writeLine("var async_runtime: ?AsyncRuntime = null;");
         try self.writeLine("");
+        
+        // Generate async runtime types inline
+        try self.generateAsyncRuntime();
+        
         try self.writeLine("fn sever_runtime_init(seed: ?u64) void {");
         try self.writeLine("    const actual_seed = seed orelse @as(u64, @intCast(time.timestamp()));");
         try self.writeLine("    prng = std.Random.DefaultPrng.init(actual_seed);");
         try self.writeLine("    random = prng.random();");
+        try self.writeLine("    // Initialize async runtime");
+        try self.writeLine("    async_runtime = AsyncRuntime.init(allocator) catch null;");
         try self.writeLine("}");
         try self.writeLine("");
         try self.writeLine("fn sample(distribution: []const u8, params: []const f64) f64 {");
@@ -120,7 +130,7 @@ pub const CodeGen = struct {
         try self.writeLine("    debug_print(\"{s}\\n\", .{message});");
         try self.writeLine("}");
         try self.writeLine("");
-        try self.writeLine("fn std_print_int(value: i32) void {");
+        try self.writeLine("fn std_print_int(value: i64) void {");
         try self.writeLine("    debug_print(\"{d}\\n\", .{value});");
         try self.writeLine("}");
         try self.writeLine("");
@@ -128,10 +138,477 @@ pub const CodeGen = struct {
         try self.writeLine("    debug_print(\"{d}\\n\", .{value});");
         try self.writeLine("}");
         try self.writeLine("");
+        
+        // Debug functions
+        try self.writeLine("fn debug_trace(function_name: []const u8, value: i64) void {");
+        try self.writeLine("    debug_print(\"DEBUG TRACE: {s}() - value: {d}\\n\", .{function_name, value});");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn debug_breakpoint(file: []const u8, line: i32, message: []const u8) void {");
+        try self.writeLine("    debug_print(\"BREAKPOINT: {s}:{d} - {s}\\n\", .{file, line, message});");
+        try self.writeLine("    // In a full implementation, this would interact with the debugger");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn debug_variable(name: []const u8, value: []const u8) void {");
+        try self.writeLine("    debug_print(\"VAR: {s} = {s}\\n\", .{name, value});");
+        try self.writeLine("}");
+        try self.writeLine("");
         // Add string concatenation function that handles null termination
         try self.writeLine("fn string_concat_z(a: [:0]const u8, b: [:0]const u8) [:0]const u8 {");
         try self.writeLine("    const result = std.fmt.allocPrintZ(allocator, \"{s}{s}\", .{a, b}) catch return \"<concat_error>\";");
         try self.writeLine("    return result;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        // Add async I/O functions
+        try self.writeLine("// Async I/O Functions");
+        try self.writeLine("fn async_http_get(url: []const u8) []const u8 {");
+        try self.writeLine("    // Simulate async HTTP GET");
+        try self.writeLine("    std.time.sleep(100_000_000); // 100ms delay");
+        try self.writeLine("    return http_get(url);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn async_file_read(path: []const u8) []const u8 {");
+        try self.writeLine("    // Simulate async file read");
+        try self.writeLine("    std.time.sleep(50_000_000); // 50ms delay");
+        try self.writeLine("    return file_read(path);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        // Add date/time functions
+        try self.writeLine("// Date/Time Functions");
+        try self.writeLine("fn datetime_now() i64 {");
+        try self.writeLine("    return time.timestamp();");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_now_millis() i64 {");
+        try self.writeLine("    return time.milliTimestamp();");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_now_micros() i64 {");
+        try self.writeLine("    return time.microTimestamp();");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_format(timestamp: i64, format: []const u8) []const u8 {");
+        try self.writeLine("    _ = format; // Simplified for now");
+        try self.writeLine("    const result = std.fmt.allocPrint(allocator, \"{d}\", .{timestamp}) catch return \"<format_error>\";");
+        try self.writeLine("    return result;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_parse(date_str: []const u8, format: []const u8) i64 {");
+        try self.writeLine("    _ = format; // Simplified for now");
+        try self.writeLine("    const parsed = std.fmt.parseInt(i64, date_str, 10) catch return 0;");
+        try self.writeLine("    return parsed;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_add_seconds(timestamp: i64, seconds: i64) i64 {");
+        try self.writeLine("    return timestamp + seconds;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_add_minutes(timestamp: i64, minutes: i64) i64 {");
+        try self.writeLine("    return timestamp + (minutes * 60);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_add_hours(timestamp: i64, hours: i64) i64 {");
+        try self.writeLine("    return timestamp + (hours * 3600);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_add_days(timestamp: i64, days: i64) i64 {");
+        try self.writeLine("    return timestamp + (days * 86400);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_diff_seconds(timestamp1: i64, timestamp2: i64) i64 {");
+        try self.writeLine("    return timestamp1 - timestamp2;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_year(timestamp: i64) i32 {");
+        try self.writeLine("    // Simplified calculation - Unix timestamp to year");
+        try self.writeLine("    const seconds_per_year: i64 = 365 * 24 * 3600;");
+        try self.writeLine("    const years_since_1970 = @divTrunc(timestamp, seconds_per_year);");
+        try self.writeLine("    return @intCast(1970 + years_since_1970);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_month(timestamp: i64) i32 {");
+        try self.writeLine("    // Simplified calculation - returns month estimate");
+        try self.writeLine("    const seconds_per_month: i64 = 30 * 24 * 3600; // Approximate");
+        try self.writeLine("    const year_start = (datetime_year(timestamp) - 1970) * 365 * 24 * 3600;");
+        try self.writeLine("    const month_offset = @divTrunc(timestamp - year_start, seconds_per_month);");
+        try self.writeLine("    return @intCast(@mod(month_offset, 12) + 1);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_day(timestamp: i64) i32 {");
+        try self.writeLine("    // Simplified calculation - returns day estimate");
+        try self.writeLine("    const seconds_per_day: i64 = 24 * 3600;");
+        try self.writeLine("    const day_offset = @divTrunc(timestamp, seconds_per_day);");
+        try self.writeLine("    return @intCast(@mod(day_offset, 31) + 1);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_hour(timestamp: i64) i32 {");
+        try self.writeLine("    const seconds_per_hour: i64 = 3600;");
+        try self.writeLine("    const hour_offset = @divTrunc(timestamp, seconds_per_hour);");
+        try self.writeLine("    return @intCast(@mod(hour_offset, 24));");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_minute(timestamp: i64) i32 {");
+        try self.writeLine("    const seconds_per_minute: i64 = 60;");
+        try self.writeLine("    const minute_offset = @divTrunc(timestamp, seconds_per_minute);");
+        try self.writeLine("    return @intCast(@mod(minute_offset, 60));");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn datetime_second(timestamp: i64) i32 {");
+        try self.writeLine("    return @intCast(@mod(timestamp, 60));");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn sleep_seconds(seconds: i64) void {");
+        try self.writeLine("    const nanoseconds = @as(u64, @intCast(seconds * 1_000_000_000));");
+        try self.writeLine("    std.time.sleep(nanoseconds);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn sleep_millis(millis: i64) void {");
+        try self.writeLine("    const nanoseconds = @as(u64, @intCast(millis * 1_000_000));");
+        try self.writeLine("    std.time.sleep(nanoseconds);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        // Regular expression functions
+        try self.writeLine("// Regular Expression Functions");
+        try self.writeLine("fn regex_match(text: []const u8, pattern: []const u8) bool {");
+        try self.writeLine("    // Simple pattern matching - supports basic patterns:");
+        try self.writeLine("    // \\\\d+ - one or more digits");
+        try self.writeLine("    // \\\\w+ - one or more word characters");
+        try self.writeLine("    // .* - any characters");
+        try self.writeLine("    // literal strings");
+        try self.writeLine("    ");
+        try self.writeLine("    if (std.mem.eql(u8, pattern, \"\\\\d+\")) {");
+        try self.writeLine("        return regex_match_digits(text);");
+        try self.writeLine("    } else if (std.mem.eql(u8, pattern, \"\\\\w+\")) {");
+        try self.writeLine("        return regex_match_word(text);");
+        try self.writeLine("    } else if (std.mem.eql(u8, pattern, \".*\")) {");
+        try self.writeLine("        return true; // .* matches everything");
+        try self.writeLine("    } else {");
+        try self.writeLine("        return std.mem.indexOf(u8, text, pattern) != null;");
+        try self.writeLine("    }");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn regex_find(text: []const u8, pattern: []const u8) []const u8 {");
+        try self.writeLine("    if (std.mem.eql(u8, pattern, \"\\\\d+\")) {");
+        try self.writeLine("        return regex_extract_digits(text);");
+        try self.writeLine("    } else if (std.mem.eql(u8, pattern, \"\\\\w+\")) {");
+        try self.writeLine("        return regex_extract_word(text);");
+        try self.writeLine("    } else if (std.mem.eql(u8, pattern, \".*\")) {");
+        try self.writeLine("        return text; // .* matches entire text");
+        try self.writeLine("    } else {");
+        try self.writeLine("        if (std.mem.indexOf(u8, text, pattern)) |index| {");
+        try self.writeLine("            const end = index + pattern.len;");
+        try self.writeLine("            return allocator.dupe(u8, text[index..end]) catch return \"<error>\";");
+        try self.writeLine("        }");
+        try self.writeLine("        return \"\"; // No match");
+        try self.writeLine("    }");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn regex_replace(text: []const u8, pattern: []const u8, replacement: []const u8) []const u8 {");
+        try self.writeLine("    if (std.mem.eql(u8, pattern, \"\\\\d+\")) {");
+        try self.writeLine("        return regex_replace_digits(text, replacement);");
+        try self.writeLine("    } else if (std.mem.eql(u8, pattern, \"\\\\w+\")) {");
+        try self.writeLine("        return regex_replace_word(text, replacement);");
+        try self.writeLine("    } else {");
+        try self.writeLine("        return std.mem.replaceOwned(u8, allocator, text, pattern, replacement) catch return \"<error>\";");
+        try self.writeLine("    }");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn regex_split(text: []const u8, pattern: []const u8) []const u8 {");
+        try self.writeLine("    // Simple split implementation - returns first part before match");
+        try self.writeLine("    if (std.mem.indexOf(u8, text, pattern)) |index| {");
+        try self.writeLine("        return allocator.dupe(u8, text[0..index]) catch return \"<error>\";");
+        try self.writeLine("    }");
+        try self.writeLine("    return allocator.dupe(u8, text) catch return \"<error>\";");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("// Helper functions for pattern matching");
+        try self.writeLine("fn regex_match_digits(text: []const u8) bool {");
+        try self.writeLine("    if (text.len == 0) return false;");
+        try self.writeLine("    for (text) |char| {");
+        try self.writeLine("        if (!std.ascii.isDigit(char)) return false;");
+        try self.writeLine("    }");
+        try self.writeLine("    return true;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn regex_match_word(text: []const u8) bool {");
+        try self.writeLine("    if (text.len == 0) return false;");
+        try self.writeLine("    for (text) |char| {");
+        try self.writeLine("        if (!std.ascii.isAlphanumeric(char) and char != '_') return false;");
+        try self.writeLine("    }");
+        try self.writeLine("    return true;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn regex_extract_digits(text: []const u8) []const u8 {");
+        try self.writeLine("    var start: ?usize = null;");
+        try self.writeLine("    var end: usize = 0;");
+        try self.writeLine("    ");
+        try self.writeLine("    for (text, 0..) |char, i| {");
+        try self.writeLine("        if (std.ascii.isDigit(char)) {");
+        try self.writeLine("            if (start == null) start = i;");
+        try self.writeLine("            end = i + 1;");
+        try self.writeLine("        } else if (start != null) {");
+        try self.writeLine("            break; // Found end of digit sequence");
+        try self.writeLine("        }");
+        try self.writeLine("    }");
+        try self.writeLine("    ");
+        try self.writeLine("    if (start) |s| {");
+        try self.writeLine("        return allocator.dupe(u8, text[s..end]) catch return \"<error>\";");
+        try self.writeLine("    }");
+        try self.writeLine("    return \"\"; // No digits found");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn regex_extract_word(text: []const u8) []const u8 {");
+        try self.writeLine("    var start: ?usize = null;");
+        try self.writeLine("    var end: usize = 0;");
+        try self.writeLine("    ");
+        try self.writeLine("    for (text, 0..) |char, i| {");
+        try self.writeLine("        if (std.ascii.isAlphanumeric(char) or char == '_') {");
+        try self.writeLine("            if (start == null) start = i;");
+        try self.writeLine("            end = i + 1;");
+        try self.writeLine("        } else if (start != null) {");
+        try self.writeLine("            break; // Found end of word");
+        try self.writeLine("        }");
+        try self.writeLine("    }");
+        try self.writeLine("    ");
+        try self.writeLine("    if (start) |s| {");
+        try self.writeLine("        return allocator.dupe(u8, text[s..end]) catch return \"<error>\";");
+        try self.writeLine("    }");
+        try self.writeLine("    return \"\"; // No word found");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn regex_replace_digits(text: []const u8, replacement: []const u8) []const u8 {");
+        try self.writeLine("    var result = std.ArrayList(u8).init(allocator);");
+        try self.writeLine("    var i: usize = 0;");
+        try self.writeLine("    ");
+        try self.writeLine("    while (i < text.len) {");
+        try self.writeLine("        if (std.ascii.isDigit(text[i])) {");
+        try self.writeLine("            // Skip all consecutive digits");
+        try self.writeLine("            while (i < text.len and std.ascii.isDigit(text[i])) {");
+        try self.writeLine("                i += 1;");
+        try self.writeLine("            }");
+        try self.writeLine("            // Add replacement");
+        try self.writeLine("            result.appendSlice(replacement) catch return \"<error>\";");
+        try self.writeLine("        } else {");
+        try self.writeLine("            result.append(text[i]) catch return \"<error>\";");
+        try self.writeLine("            i += 1;");
+        try self.writeLine("        }");
+        try self.writeLine("    }");
+        try self.writeLine("    ");
+        try self.writeLine("    return result.toOwnedSlice() catch return \"<error>\";");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn regex_replace_word(text: []const u8, replacement: []const u8) []const u8 {");
+        try self.writeLine("    var result = std.ArrayList(u8).init(allocator);");
+        try self.writeLine("    var i: usize = 0;");
+        try self.writeLine("    ");
+        try self.writeLine("    while (i < text.len) {");
+        try self.writeLine("        if (std.ascii.isAlphanumeric(text[i]) or text[i] == '_') {");
+        try self.writeLine("            // Skip all consecutive word characters");
+        try self.writeLine("            while (i < text.len and (std.ascii.isAlphanumeric(text[i]) or text[i] == '_')) {");
+        try self.writeLine("                i += 1;");
+        try self.writeLine("            }");
+        try self.writeLine("            // Add replacement");
+        try self.writeLine("            result.appendSlice(replacement) catch return \"<error>\";");
+        try self.writeLine("        } else {");
+        try self.writeLine("            result.append(text[i]) catch return \"<error>\";");
+        try self.writeLine("            i += 1;");
+        try self.writeLine("        }");
+        try self.writeLine("    }");
+        try self.writeLine("    ");
+        try self.writeLine("    return result.toOwnedSlice() catch return \"<error>\";");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        // FFI (Foreign Function Interface) support
+        try self.writeLine("// FFI (Foreign Function Interface) Functions");
+        try self.writeLine("const DynamicLibrary = std.DynLib;");
+        try self.writeLine("var loaded_libraries = std.HashMap([]const u8, DynamicLibrary, std.hash_map.StringContext, std.hash_map.default_max_load_percentage).init(allocator);");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_load_library(path: []const u8) bool {");
+        try self.writeLine("    const lib = DynamicLibrary.open(path) catch return false;");
+        try self.writeLine("    const path_copy = allocator.dupe(u8, path) catch return false;");
+        try self.writeLine("    loaded_libraries.put(path_copy, lib) catch return false;");
+        try self.writeLine("    return true;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_unload_library(path: []const u8) bool {");
+        try self.writeLine("    if (loaded_libraries.fetchRemove(path)) |entry| {");
+        try self.writeLine("        entry.value.close();");
+        try self.writeLine("        allocator.free(entry.key);");
+        try self.writeLine("        return true;");
+        try self.writeLine("    }");
+        try self.writeLine("    return false;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_call_i32(lib_path: []const u8, func_name: []const u8, args: []const i32) i32 {");
+        try self.writeLine("    const lib = loaded_libraries.get(lib_path) orelse return -1;");
+        try self.writeLine("    ");
+        try self.writeLine("    // Create null-terminated function name");
+        try self.writeLine("    const func_name_z = allocator.dupeZ(u8, func_name) catch return -1;");
+        try self.writeLine("    defer allocator.free(func_name_z);");
+        try self.writeLine("    ");
+        try self.writeLine("    // Lookup the function symbol");
+        try self.writeLine("    const func_ptr = lib.lookup(*const fn() callconv(.C) i32, func_name_z) orelse return -1;");
+        try self.writeLine("    ");
+        try self.writeLine("    // Call function based on argument count");
+        try self.writeLine("    return switch (args.len) {");
+        try self.writeLine("        0 => @as(*const fn() callconv(.C) i32, func_ptr)(),");
+        try self.writeLine("        1 => @as(*const fn(i32) callconv(.C) i32, func_ptr)(args[0]),");
+        try self.writeLine("        2 => @as(*const fn(i32, i32) callconv(.C) i32, func_ptr)(args[0], args[1]),");
+        try self.writeLine("        3 => @as(*const fn(i32, i32, i32) callconv(.C) i32, func_ptr)(args[0], args[1], args[2]),");
+        try self.writeLine("        else => -1, // Unsupported argument count");
+        try self.writeLine("    };");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_call_f64(lib_path: []const u8, func_name: []const u8, args: []const f64) f64 {");
+        try self.writeLine("    const lib = loaded_libraries.get(lib_path) orelse return -1.0;");
+        try self.writeLine("    ");
+        try self.writeLine("    const func_name_z = allocator.dupeZ(u8, func_name) catch return -1.0;");
+        try self.writeLine("    defer allocator.free(func_name_z);");
+        try self.writeLine("    ");
+        try self.writeLine("    const func_ptr = lib.lookup(*const fn() callconv(.C) f64, func_name_z) orelse return -1.0;");
+        try self.writeLine("    ");
+        try self.writeLine("    return switch (args.len) {");
+        try self.writeLine("        0 => @as(*const fn() callconv(.C) f64, func_ptr)(),");
+        try self.writeLine("        1 => @as(*const fn(f64) callconv(.C) f64, func_ptr)(args[0]),");
+        try self.writeLine("        2 => @as(*const fn(f64, f64) callconv(.C) f64, func_ptr)(args[0], args[1]),");
+        try self.writeLine("        3 => @as(*const fn(f64, f64, f64) callconv(.C) f64, func_ptr)(args[0], args[1], args[2]),");
+        try self.writeLine("        else => -1.0,");
+        try self.writeLine("    };");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_call_str(lib_path: []const u8, func_name: []const u8, args: []const []const u8) []const u8 {");
+        try self.writeLine("    const lib = loaded_libraries.get(lib_path) orelse return \"<error: library not found>\";");
+        try self.writeLine("    ");
+        try self.writeLine("    const func_name_z = allocator.dupeZ(u8, func_name) catch return \"<error: out of memory>\";");
+        try self.writeLine("    defer allocator.free(func_name_z);");
+        try self.writeLine("    ");
+        try self.writeLine("    const func_ptr = lib.lookup(*const fn() callconv(.C) [*:0]const u8, func_name_z) orelse return \"<error: function not found>\";");
+        try self.writeLine("    ");
+        try self.writeLine("    // Convert string arguments to null-terminated");
+        try self.writeLine("    var c_args = allocator.alloc([*:0]const u8, args.len) catch return \"<error: out of memory>\";");
+        try self.writeLine("    defer allocator.free(c_args);");
+        try self.writeLine("    ");
+        try self.writeLine("    for (args, 0..) |arg, i| {");
+        try self.writeLine("        c_args[i] = allocator.dupeZ(u8, arg) catch return \"<error: out of memory>\";");
+        try self.writeLine("    }");
+        try self.writeLine("    ");
+        try self.writeLine("    defer for (c_args) |c_arg| {");
+        try self.writeLine("        allocator.free(std.mem.span(c_arg));");
+        try self.writeLine("    };");
+        try self.writeLine("    ");
+        try self.writeLine("    const result = switch (args.len) {");
+        try self.writeLine("        0 => @as(*const fn() callconv(.C) [*:0]const u8, func_ptr)(),");
+        try self.writeLine("        1 => @as(*const fn([*:0]const u8) callconv(.C) [*:0]const u8, func_ptr)(c_args[0]),");
+        try self.writeLine("        2 => @as(*const fn([*:0]const u8, [*:0]const u8) callconv(.C) [*:0]const u8, func_ptr)(c_args[0], c_args[1]),");
+        try self.writeLine("        3 => @as(*const fn([*:0]const u8, [*:0]const u8, [*:0]const u8) callconv(.C) [*:0]const u8, func_ptr)(c_args[0], c_args[1], c_args[2]),");
+        try self.writeLine("        else => return \"<error: too many arguments>\",");
+        try self.writeLine("    };");
+        try self.writeLine("    ");
+        try self.writeLine("    // Convert result back to Zig string");
+        try self.writeLine("    const result_span = std.mem.span(result);");
+        try self.writeLine("    return allocator.dupe(u8, result_span) catch return \"<error: out of memory>\";");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_call_void(lib_path: []const u8, func_name: []const u8, args: []const i32) void {");
+        try self.writeLine("    const lib = loaded_libraries.get(lib_path) orelse return;");
+        try self.writeLine("    ");
+        try self.writeLine("    const func_name_z = allocator.dupeZ(u8, func_name) catch return;");
+        try self.writeLine("    defer allocator.free(func_name_z);");
+        try self.writeLine("    ");
+        try self.writeLine("    const func_ptr = lib.lookup(*const fn() callconv(.C) void, func_name_z) orelse return;");
+        try self.writeLine("    ");
+        try self.writeLine("    switch (args.len) {");
+        try self.writeLine("        0 => @as(*const fn() callconv(.C) void, func_ptr)(),");
+        try self.writeLine("        1 => @as(*const fn(i32) callconv(.C) void, func_ptr)(args[0]),");
+        try self.writeLine("        2 => @as(*const fn(i32, i32) callconv(.C) void, func_ptr)(args[0], args[1]),");
+        try self.writeLine("        3 => @as(*const fn(i32, i32, i32) callconv(.C) void, func_ptr)(args[0], args[1], args[2]),");
+        try self.writeLine("        else => {},");
+        try self.writeLine("    }");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_alloc_bytes(size: i32) i64 {");
+        try self.writeLine("    const memory = allocator.alloc(u8, @intCast(size)) catch return 0;");
+        try self.writeLine("    return @intCast(@intFromPtr(memory.ptr));");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_free_bytes(ptr: i64) void {");
+        try self.writeLine("    if (ptr == 0) return;");
+        try self.writeLine("    // Note: This is simplified - in practice we'd need to track allocation sizes");
+        try self.writeLine("    // For now, this is a placeholder for proper memory management");
+        try self.writeLine("    // In a real implementation, we would free the actual memory");
+        try self.writeLine("    // TODO: Implement proper memory tracking and freeing");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_read_i32(ptr: i64) i32 {");
+        try self.writeLine("    if (ptr == 0) return 0;");
+        try self.writeLine("    const memory: *i32 = @ptrFromInt(@as(usize, @intCast(ptr)));");
+        try self.writeLine("    return memory.*;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_write_i32(ptr: i64, value: i32) void {");
+        try self.writeLine("    if (ptr == 0) return;");
+        try self.writeLine("    const memory: *i32 = @ptrFromInt(@as(usize, @intCast(ptr)));");
+        try self.writeLine("    memory.* = value;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_read_str(ptr: i64, len: i32) []const u8 {");
+        try self.writeLine("    if (ptr == 0 or len <= 0) return \"\";");
+        try self.writeLine("    const memory: [*]const u8 = @ptrFromInt(@as(usize, @intCast(ptr)));");
+        try self.writeLine("    const slice = memory[0..@intCast(len)];");
+        try self.writeLine("    return allocator.dupe(u8, slice) catch return \"<error: out of memory>\";");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn ffi_write_str(ptr: i64, str: []const u8) void {");
+        try self.writeLine("    if (ptr == 0) return;");
+        try self.writeLine("    const memory: [*]u8 = @ptrFromInt(@as(usize, @intCast(ptr)));");
+        try self.writeLine("    for (str, 0..) |char, i| {");
+        try self.writeLine("        memory[i] = char;");
+        try self.writeLine("    }");
         try self.writeLine("}");
         try self.writeLine("");
         
@@ -571,6 +1048,15 @@ pub const CodeGen = struct {
         // Return type - main function should return !void and print result
         if (std.mem.eql(u8, name, "main")) {
             try self.write("!void");
+        } else if (function.@"async") {
+            // Async functions return futures
+            try self.write("*Future(");
+            if (function.@"return" == .void) {
+                try self.write("void");
+            } else {
+                try self.generateType(function.@"return");
+            }
+            try self.write(")");
         } else if (function.@"return" == .void) {
             try self.write("void");
         } else {
@@ -586,9 +1072,37 @@ pub const CodeGen = struct {
             try self.writeLine("sever_runtime_init(null);");
         }
         
-        // Function body
-        for (function.body.items) |*stmt| {
-            try self.generateStatement(stmt);
+        // Handle async function wrapper
+        if (function.@"async" and !std.mem.eql(u8, name, "main")) {
+            try self.writeIndent();
+            try self.writeLine("const future = allocator.create(Future([]const u8)) catch @panic(\"OOM\");");
+            try self.writeIndent();
+            try self.writeLine("future.* = Future([]const u8){};");
+            try self.writeIndent();
+            try self.writeLine("_ = Thread.spawn(.{}, struct {");
+            self.indent_level += 1;
+            try self.writeIndent();
+            try self.writeLine("fn run(f: *Future([]const u8)) void {");
+            self.indent_level += 1;
+            
+            // Generate async function body
+            for (function.body.items) |*stmt| {
+                try self.generateAsyncStatement(stmt);
+            }
+            
+            self.indent_level -= 1;
+            try self.writeIndent();
+            try self.writeLine("}");
+            self.indent_level -= 1;
+            try self.writeIndent();
+            try self.writeLine("}.run, .{future}) catch {};");
+            try self.writeIndent();
+            try self.writeLine("return future;");
+        } else {
+            // Regular function body
+            for (function.body.items) |*stmt| {
+                try self.generateStatement(stmt);
+            }
         }
         
         self.indent_level -= 1;
@@ -964,6 +1478,13 @@ pub const CodeGen = struct {
                 try self.write("}");
             },
             
+            .@"await" => |await_expr| {
+                // Generate await expression - wait on the future
+                try self.write("try ");
+                try self.generateExpression(await_expr);
+                try self.write(".wait()");
+            },
+            
             else => {
                 return CodeGenError.UnsupportedExpression;
             },
@@ -1321,6 +1842,20 @@ pub const CodeGen = struct {
                 try self.write(param_name);
             },
             
+            .function => |func_type| {
+                // Generate function type
+                if (func_type.@"async") {
+                    try self.write("async ");
+                }
+                try self.write("fn (");
+                for (func_type.args.items, 0..) |arg_type, i| {
+                    if (i > 0) try self.write(", ");
+                    try self.generateType(arg_type);
+                }
+                try self.write(") ");
+                try self.generateType(func_type.@"return".*);
+            },
+            
             .generic_instance => |generic_inst| {
                 // Generate instantiated generic type
                 try self.write(generic_inst.base_type);
@@ -1349,6 +1884,12 @@ pub const CodeGen = struct {
             .discriminated_union => |union_def| {
                 // Discriminated unions generate as tagged unions in Zig
                 try self.write(union_def.name);
+            },
+            
+            .future => |future_type| {
+                // Future types in Zig - for simplicity, we'll use the wrapped type directly
+                // In a full implementation, this would be a proper async frame type
+                try self.generateType(future_type.*);
             },
             
             else => {
@@ -1625,7 +2166,20 @@ pub const CodeGen = struct {
             },
             .string => |s| {
                 try self.write("\"");
-                try self.write(s);
+                // Escape backslashes and quotes in string literals
+                for (s) |char| {
+                    switch (char) {
+                        '\\' => try self.write("\\\\"),
+                        '"' => try self.write("\\\""),
+                        '\n' => try self.write("\\n"),
+                        '\r' => try self.write("\\r"),
+                        '\t' => try self.write("\\t"),
+                        else => {
+                            const char_str = [_]u8{char};
+                            try self.write(&char_str);
+                        },
+                    }
+                }
                 try self.write("\"");
             },
             .boolean => |b| {
@@ -1655,5 +2209,126 @@ pub const CodeGen = struct {
         while (i < self.indent_level) : (i += 1) {
             self.output.appendSlice("    ") catch return CodeGenError.OutOfMemory;
         }
+    }
+    
+    fn isAsyncFunction(self: *CodeGen, function_name: []const u8) bool {
+        // For now, check if function name contains "fetch" or similar async patterns
+        // In a full implementation, we'd track async functions from the AST
+        _ = self;
+        return std.mem.indexOf(u8, function_name, "fetch") != null or
+               std.mem.indexOf(u8, function_name, "async") != null;
+    }
+    
+    fn generateAsyncStatement(self: *CodeGen, stmt: *Statement) CodeGenError!void {
+        switch (stmt.*) {
+            .@"return" => |*return_expr| {
+                try self.writeIndent();
+                try self.write("f.complete(");
+                try self.generateExpression(return_expr);
+                try self.writeLine(");");
+                try self.writeIndent();
+                try self.writeLine("return;");
+            },
+            else => {
+                // For other statements, generate normally
+                try self.generateStatement(stmt);
+            },
+        }
+    }
+    
+    fn generateAsyncRuntime(self: *CodeGen) CodeGenError!void {
+        // Generate simplified async runtime inline
+        try self.writeLine("// Async Runtime Types");
+        try self.writeLine("pub const TaskStatus = enum { pending, running, completed, failed };");
+        try self.writeLine("");
+        
+        // Generate Future type
+        try self.writeLine("pub fn Future(comptime T: type) type {");
+        try self.writeLine("    return struct {");
+        try self.writeLine("        const Self = @This();");
+        try self.writeLine("        status: TaskStatus = .pending,");
+        try self.writeLine("        value: ?T = null,");
+        try self.writeLine("        error_value: ?anyerror = null,");
+        try self.writeLine("        mutex: Mutex = .{},");
+        try self.writeLine("        ");
+        try self.writeLine("        pub fn complete(self: *Self, val: T) void {");
+        try self.writeLine("            self.mutex.lock();");
+        try self.writeLine("            defer self.mutex.unlock();");
+        try self.writeLine("            self.value = val;");
+        try self.writeLine("            self.status = .completed;");
+        try self.writeLine("        }");
+        try self.writeLine("        ");
+        try self.writeLine("        pub fn wait(self: *Self) !T {");
+        try self.writeLine("            while (true) {");
+        try self.writeLine("                self.mutex.lock();");
+        try self.writeLine("                const status = self.status;");
+        try self.writeLine("                const val = self.value;");
+        try self.writeLine("                self.mutex.unlock();");
+        try self.writeLine("                if (status == .completed) return val.?;");
+        try self.writeLine("                if (status == .failed) return self.error_value.?;");
+        try self.writeLine("                std.time.sleep(1_000_000);");
+        try self.writeLine("            }");
+        try self.writeLine("        }");
+        try self.writeLine("    };");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        // Generate simple async runtime
+        try self.writeLine("pub const AsyncRuntime = struct {");
+        try self.writeLine("    allocator: Allocator,");
+        try self.writeLine("    ");
+        try self.writeLine("    pub fn init(alloc: Allocator) !AsyncRuntime {");
+        try self.writeLine("        return AsyncRuntime{ .allocator = alloc };");
+        try self.writeLine("    }");
+        try self.writeLine("    ");
+        try self.writeLine("    pub fn spawn(self: *AsyncRuntime, comptime T: type, func: *const fn() T) !*Future(T) {");
+        try self.writeLine("        const future = try self.allocator.create(Future(T));");
+        try self.writeLine("        future.* = Future(T){};");
+        try self.writeLine("        // Spawn thread to execute function");
+        try self.writeLine("        const Context = struct {");
+        try self.writeLine("            future: *Future(T),");
+        try self.writeLine("            func: *const fn() T,");
+        try self.writeLine("        };");
+        try self.writeLine("        const ctx = try self.allocator.create(Context);");
+        try self.writeLine("        ctx.* = .{ .future = future, .func = func };");
+        try self.writeLine("        _ = try Thread.spawn(.{}, struct {");
+        try self.writeLine("            fn run(context: *Context) void {");
+        try self.writeLine("                const result = context.func();");
+        try self.writeLine("                context.future.complete(result);");
+        try self.writeLine("            }");
+        try self.writeLine("        }.run, .{ctx});");
+        try self.writeLine("        return future;");
+        try self.writeLine("    }");
+        try self.writeLine("};");
+        try self.writeLine("");
+        
+        // Generate channel type
+        try self.writeLine("pub fn Channel(comptime T: type) type {");
+        try self.writeLine("    return struct {");
+        try self.writeLine("        const Self = @This();");
+        try self.writeLine("        buffer: ArrayList(T),");
+        try self.writeLine("        mutex: Mutex = .{},");
+        try self.writeLine("        ");
+        try self.writeLine("        pub fn init(alloc: Allocator) Self {");
+        try self.writeLine("            return Self{ .buffer = ArrayList(T).init(alloc) };");
+        try self.writeLine("        }");
+        try self.writeLine("        ");
+        try self.writeLine("        pub fn send(self: *Self, value: T) !void {");
+        try self.writeLine("            self.mutex.lock();");
+        try self.writeLine("            defer self.mutex.unlock();");
+        try self.writeLine("            try self.buffer.append(value);");
+        try self.writeLine("        }");
+        try self.writeLine("        ");
+        try self.writeLine("        pub fn receive(self: *Self) ?T {");
+        try self.writeLine("            self.mutex.lock();");
+        try self.writeLine("            defer self.mutex.unlock();");
+        try self.writeLine("            if (self.buffer.items.len > 0) {");
+        try self.writeLine("                return self.buffer.orderedRemove(0);");
+        try self.writeLine("            }");
+        try self.writeLine("            return null;");
+        try self.writeLine("        }");
+        try self.writeLine("    };");
+        try self.writeLine("}");
+        try self.writeLine("");
     }
 };

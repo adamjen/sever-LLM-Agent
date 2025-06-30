@@ -4,6 +4,14 @@ const testing = std.testing;
 const SirsParser = @import("sirs.zig");
 const TypeChecker = @import("typechecker.zig").TypeChecker;
 const CodeGen = @import("codegen.zig").CodeGen;
+const CodeGenError = @import("codegen.zig").CodeGenError;
+
+// Import custom distribution test modules
+comptime {
+    _ = @import("test_custom_distributions.zig");
+    _ = @import("test_mcp_distribution_tools.zig");
+    _ = @import("test_distribution_compiler.zig");
+}
 
 test "SIRS parser basic functionality" {
     const allocator = testing.allocator;
@@ -154,6 +162,6 @@ test "Code generation basic test" {
     // Test that code generation doesn't crash
     codegen.generateProgram(&program) catch |err| {
         // Expected to fail due to missing runtime, but should not crash
-        try testing.expect(err == CodeGen.CodeGenError.CompilationError or err == CodeGen.CodeGenError.IoError);
+        try testing.expect(err == CodeGenError.CompilationError or err == CodeGenError.IoError);
     };
 }

@@ -1,0 +1,131 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "producer": {
+        "args": [],
+        "return": "str",
+        "async": true,
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Producer: generating data..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "data",
+              "value": {"literal": "Produced data item"}
+            }
+          },
+          {
+            "return": {"var": "data"}
+          }
+        ]
+      },
+      "consumer": {
+        "args": [],
+        "return": "str",
+        "async": true,
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Consumer: waiting for data..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "result",
+              "value": {"literal": "Consumed successfully"}
+            }
+          },
+          {
+            "return": {"var": "result"}
+          }
+        ]
+      },
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Starting producer-consumer pattern..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "producer_future",
+              "value": {
+                "call": {
+                  "function": "producer",
+                  "args": []
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "consumer_future",
+              "value": {
+                "call": {
+                  "function": "consumer",
+                  "args": []
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "produced",
+              "value": {
+                "await": {"var": "producer_future"}
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "consumed",
+              "value": {
+                "await": {"var": "consumer_future"}
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "produced"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "consumed"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Producer-consumer completed!"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

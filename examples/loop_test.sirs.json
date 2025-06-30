@@ -1,0 +1,147 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "calculate_sum": {
+        "args": [
+          {"name": "n", "type": "i32"}
+        ],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "sum",
+              "type": "i32",
+              "value": {"literal": 0}
+            }
+          },
+          {
+            "let": {
+              "name": "i",
+              "type": "i32", 
+              "value": {"literal": 1}
+            }
+          },
+          {
+            "let": {
+              "name": "constant_factor",
+              "type": "i32",
+              "value": {"literal": 2}
+            }
+          },
+          {
+            "while": {
+              "condition": {
+                "op": {
+                  "kind": "le",
+                  "args": [
+                    {"var": "i"},
+                    {"var": "n"}
+                  ]
+                }
+              },
+              "body": [
+                {
+                  "let": {
+                    "name": "multiplied",
+                    "type": "i32",
+                    "value": {
+                      "op": {
+                        "kind": "mul",
+                        "args": [
+                          {"var": "i"},
+                          {"var": "constant_factor"}
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "assign": {
+                    "target": {"var": "sum"},
+                    "value": {
+                      "op": {
+                        "kind": "add",
+                        "args": [
+                          {"var": "sum"},
+                          {"var": "multiplied"}
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "assign": {
+                    "target": {"var": "i"},
+                    "value": {
+                      "op": {
+                        "kind": "add",
+                        "args": [
+                          {"var": "i"},
+                          {"literal": 1}
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "return": {"var": "sum"}
+          }
+        ]
+      },
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "=== Loop Optimization Testing ==="}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "result",
+              "type": "i32", 
+              "value": {
+                "call": {
+                  "function": "calculate_sum",
+                  "args": [{"literal": 10}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Sum result:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "result"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Loop optimizations completed!"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
