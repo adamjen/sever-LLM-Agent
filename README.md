@@ -99,17 +99,26 @@ Instead of parsing text, Sever programs are written in structured JSON:
 
 ### Compilation Pipeline
 ```
-SIRS JSON → Parser → Type Checker → Code Generator → Native Binary
-    ↓           ↓          ↓             ↓              ↓
-   AST      Validation   Types      Zig Source     Executable
+SIRS JSON → Parser → Type Checker → CIR Lowering → Optimizer → Code Generator → Native Binary
+    ↓           ↓          ↓            ↓             ↓            ↓              ↓
+   AST      Validation   Types     Core IR     Optimized IR   Zig Source     Executable
 ```
+
+### Phase 2 Optimizations
+The compiler includes advanced optimization passes:
+- **Dead Code Elimination** - Removes unreachable blocks and unused instructions
+- **Constant Folding & Propagation** - Evaluates constants at compile time with iterative propagation
+- **Function Inlining** - Replaces small function calls with function bodies using smart heuristics
 
 ### Compiler Components
 1. **SIRS Parser** (`sirs.zig`) - Parses JSON-based intermediate representation
 2. **Type Checker** (`typechecker.zig`) - Validates program correctness and infers types  
-3. **Code Generator** (`codegen.zig`) - Emits native Zig code for compilation
-4. **Runtime Library** (`runtime/`) - Provides probabilistic programming primitives
-5. **MCP Server** (`mcp.zig`) - Enables LLM interaction and introspection
+3. **CIR Lowering** (`cir.zig`) - Converts to Core Intermediate Representation
+4. **Optimizer** (`optimization.zig`) - Advanced optimization passes (dead code elimination, constant folding, function inlining)
+5. **Code Generator** (`codegen.zig`) - Emits native Zig code for compilation
+6. **Formatter** (`formatter.zig`) - Pretty-prints SIRS JSON with consistent style
+7. **Runtime Library** (`runtime/`) - Provides probabilistic programming primitives
+8. **MCP Server** (`mcp.zig`) - Enables LLM interaction and introspection
 
 ## 🛠️ Tools
 
@@ -124,15 +133,29 @@ SIRS JSON → Parser → Type Checker → Code Generator → Native Binary
 # Generate documentation  
 ./dist/sev doc program.sirs.json
 
+# Format SIRS code with consistent style
+./dist/sev fmt program.sirs.json
+
+# Start interactive REPL mode
+./dist/sev repl
+
 # Start MCP server for LLM integration
 ./dist/sev serve
 ```
 
 ### MCP Integration
-Sever includes a Model Context Protocol server that exposes tools for LLMs:
-- `compile` - Compile SIRS programs to binaries
-- `type_check` - Validate program types
-- `infer_type` - Infer expression types
+Sever includes a comprehensive Model Context Protocol server that exposes advanced tools for LLMs:
+- `compile` - Compile SIRS programs with detailed analysis
+- `type_check` - Comprehensive type checking with error reporting
+- `infer_type` - Infer types of SIRS expressions
+- `analyze_program` - Comprehensive program analysis with complexity metrics
+- `optimize_analysis` - Analyze optimization opportunities with estimated benefits
+- `function_info` - Detailed function parameter and signature analysis
+
+### Interactive Development
+- **REPL Mode** - Interactive evaluation of SIRS expressions with JSON syntax
+- **Code Formatter** - Consistent, deterministic formatting with proper indentation
+- **Rich Analysis** - Complexity scoring, optimization recommendations, and performance insights
 
 ## 🚀 Building from Source
 
@@ -261,9 +284,14 @@ sever1/
 │   ├── main.zig          # CLI entry point
 │   ├── sirs.zig          # SIRS parser and AST
 │   ├── typechecker.zig   # Type system
+│   ├── cir.zig           # Core Intermediate Representation
+│   ├── optimization.zig  # Optimization passes (DCE, constant folding, inlining)
 │   ├── codegen.zig       # Code generation
+│   ├── formatter.zig     # SIRS code formatter
 │   ├── compiler.zig      # Compilation coordinator
-│   └── mcp.zig           # MCP server
+│   ├── cli.zig           # Command-line interface
+│   ├── error_reporter.zig # Error reporting and diagnostics
+│   └── mcp.zig           # MCP server with advanced introspection
 ├── runtime/
 │   └── sever_runtime.zig # Probabilistic runtime
 ├── examples/
