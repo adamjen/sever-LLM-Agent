@@ -1,0 +1,184 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Testing string manipulation functions..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "test_string",
+              "type": "str",
+              "value": {"literal": "  Hello, World!  "}
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Original string:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "test_string"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "String length:"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "length",
+              "type": "i32",
+              "value": {
+                "call": {
+                  "function": "str_length",
+                  "args": [{"var": "test_string"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "length"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Testing contains:"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "contains_hello",
+              "type": "bool",
+              "value": {
+                "call": {
+                  "function": "str_contains",
+                  "args": [{"var": "test_string"}, {"literal": "Hello"}]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "condition": {"var": "contains_hello"},
+              "then": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "String contains 'Hello'!"}]
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "String does not contain 'Hello'!"}]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Testing trim:"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "trimmed",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "str_trim",
+                  "args": [{"var": "test_string"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "trimmed"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Testing uppercase:"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "uppercase",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "str_to_upper",
+                  "args": [{"var": "trimmed"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "uppercase"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "String manipulation test complete"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

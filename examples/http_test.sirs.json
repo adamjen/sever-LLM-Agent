@@ -1,0 +1,59 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "url",
+              "type": "str",
+              "value": {"literal": "https://httpbin.org/json"}
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Testing HTTP GET request..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "response",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "http_get",
+                  "args": [{"var": "url"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "response"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "HTTP test complete"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

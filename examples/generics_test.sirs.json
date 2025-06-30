@@ -1,0 +1,74 @@
+{
+  "program": {
+    "entry": "main",
+    "types": {
+      "Option": {
+        "generic_def": {
+          "name": "Option",
+          "params": ["T"],
+          "definition": {
+            "enum": {
+              "name": "Option",
+              "variants": {
+                "Some": "T",
+                "None": null
+              }
+            }
+          }
+        }
+      },
+      "Pair": {
+        "generic_def": {
+          "name": "Pair",
+          "params": ["T", "U"],
+          "definition": {
+            "record": {
+              "name": "Pair",
+              "fields": {
+                "first": "T",
+                "second": "U"
+              }
+            }
+          }
+        }
+      }
+    },
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "maybe_number",
+              "type": {
+                "generic": {
+                  "type": "Option",
+                  "args": ["i32"]
+                }
+              },
+              "value": {
+                "enum": {
+                  "type": "Option",
+                  "variant": "Some",
+                  "value": {"literal": 42}
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Created generic types successfully"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

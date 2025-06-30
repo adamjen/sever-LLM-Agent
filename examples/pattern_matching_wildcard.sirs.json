@@ -1,0 +1,42 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "x",
+              "value": {"literal": 999}
+            }
+          },
+          {
+            "match": {
+              "value": {"var": "x"},
+              "cases": [
+                {
+                  "pattern": {"literal": 42},
+                  "body": [
+                    {
+                      "return": {"literal": 100}
+                    }
+                  ]
+                },
+                {
+                  "pattern": {"var": "captured"},
+                  "body": [
+                    {
+                      "return": {"var": "captured"}
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

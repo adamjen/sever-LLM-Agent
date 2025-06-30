@@ -39,15 +39,27 @@ zig build
 
 ### Static Type System
 - **Primitive types**: `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64`, `bool`, `str`
-- **Composite types**: Arrays, slices, structs, optionals
+- **Composite types**: Arrays, slices, structs, tuples, records, hash maps, sets
+- **Advanced types**: Enums with associated values, union types, optional types
+- **Generics**: Parametric types with type parameters and instances
+- **Interface/trait system**: Dynamic dispatch with vtables
 - **Type inference** - explicit when needed, inferred when clear
 - **Memory safety** - no manual memory management required
+
+### Control Flow & Pattern Matching
+- **Pattern matching**: Exhaustive pattern checking with return analysis
+- **Exception handling**: try/catch/finally blocks with custom error types
+- **Control structures**: If/else, while/for loops, match expressions
 
 ### Probabilistic Programming
 Built-in support for statistical computing with native distributions and sampling
 
-### Standard Library
-Essential functions for I/O, mathematical operations, and system interaction
+### Comprehensive Standard Library
+- **HTTP client**: `http_get`, `http_post`, `http_put`, `http_delete`
+- **File I/O**: Complete file system operations (`file_read`, `file_write`, `dir_create`, etc.)
+- **JSON support**: Parsing, serialization, and data extraction
+- **String manipulation**: 11 string functions (`str_length`, `str_contains`, `str_trim`, etc.)
+- **Mathematical operations**: Built-in arithmetic and statistical functions
 
 ## 🏗️ Architecture
 
@@ -106,8 +118,11 @@ SIRS JSON → Parser → Type Checker → Code Generator → Native Binary
 # Compile SIRS to native binary
 sev build program.sirs.json
 
-# Type check without compilation  
-sev check program.sirs.json
+# Run tests on SIRS program
+sev test program.sirs.json
+
+# Generate documentation  
+sev doc program.sirs.json
 
 # Start MCP server for LLM integration
 sev serve
@@ -201,6 +216,43 @@ Built-in functions:
 - `std_print_int(value: i32)` - Print integer
 - `std_print_float(value: f64)` - Print float
 
+### HTTP Client
+- `http_get(url: str) -> str` - HTTP GET request
+- `http_post(url: str, body: str) -> str` - HTTP POST request
+- `http_put(url: str, body: str) -> str` - HTTP PUT request
+- `http_delete(url: str) -> str` - HTTP DELETE request
+
+### File I/O Operations
+- `file_read(path: str) -> str` - Read file contents
+- `file_write(path: str, content: str) -> bool` - Write file
+- `file_append(path: str, content: str) -> bool` - Append to file
+- `file_exists(path: str) -> bool` - Check file existence
+- `file_delete(path: str) -> bool` - Delete file
+- `file_size(path: str) -> i64` - Get file size
+- `dir_create(path: str) -> bool` - Create directory
+- `dir_exists(path: str) -> bool` - Check directory existence
+- `dir_list(path: str) -> str` - List directory contents
+
+### JSON Processing
+- `json_parse(json: str) -> str` - Parse and format JSON
+- `json_get_string(json: str, key: str) -> str` - Extract string value
+- `json_get_number(json: str, key: str) -> f64` - Extract number value
+- `json_get_bool(json: str, key: str) -> bool` - Extract boolean value
+- `json_has_key(json: str, key: str) -> bool` - Check key existence
+
+### String Manipulation
+- `str_length(s: str) -> i32` - Get string length
+- `str_substring(s: str, start: i64, end: i64) -> str` - Extract substring
+- `str_contains(s: str, needle: str) -> bool` - Check substring
+- `str_starts_with(s: str, prefix: str) -> bool` - Check prefix
+- `str_ends_with(s: str, suffix: str) -> bool` - Check suffix
+- `str_index_of(s: str, needle: str) -> i64` - Find substring position
+- `str_replace(s: str, needle: str, replacement: str) -> str` - Replace all occurrences
+- `str_to_upper(s: str) -> str` - Convert to uppercase
+- `str_to_lower(s: str) -> str` - Convert to lowercase
+- `str_trim(s: str) -> str` - Remove whitespace
+- `str_equals(a: str, b: str) -> bool` - Compare strings
+
 ## 📁 Project Structure
 
 ```
@@ -218,7 +270,19 @@ sever1/
 │   ├── simple_math.sirs.json
 │   ├── hello_world.sirs.json
 │   ├── fibonacci.sirs.json
-│   └── monte_carlo_pi.sirs.json
+│   ├── monte_carlo_pi.sirs.json
+│   ├── pattern_matching_test.sirs.json
+│   ├── enum_test.sirs.json
+│   ├── exception_test.sirs.json
+│   ├── collections_test.sirs.json
+│   ├── tuples_records_test.sirs.json
+│   ├── generics_test.sirs.json
+│   ├── interfaces_test.sirs.json
+│   ├── http_test.sirs.json
+│   ├── file_io_test.sirs.json
+│   ├── json_test.sirs.json
+│   ├── json_http_test.sirs.json
+│   └── string_test.sirs.json
 ├── sirs-spec.json        # Complete SIRS schema
 ├── build.zig            # Zig build configuration
 ├── README.md            # This file

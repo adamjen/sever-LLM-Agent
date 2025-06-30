@@ -1,0 +1,84 @@
+{
+  "program": {
+    "entry": "main",
+    "types": {
+      "Point": {
+        "record": {
+          "name": "Point",
+          "fields": {
+            "x": "i32",
+            "y": "i32"
+          }
+        }
+      },
+      "Person": {
+        "record": {
+          "name": "Person",
+          "fields": {
+            "name": "str",
+            "age": "i32"
+          }
+        }
+      }
+    },
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "coordinates",
+              "value": {
+                "tuple": [
+                  {"literal": 10},
+                  {"literal": 20},
+                  {"literal": "hello"}
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "point",
+              "value": {
+                "record": {
+                  "type": "Point",
+                  "fields": {
+                    "x": {"literal": 5},
+                    "y": {"literal": 15}
+                  }
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "person",
+              "value": {
+                "record": {
+                  "type": "Person",
+                  "fields": {
+                    "name": {"literal": "Alice"},
+                    "age": {"literal": 30}
+                  }
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Created tuples and records successfully"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

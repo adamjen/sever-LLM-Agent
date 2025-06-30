@@ -1,0 +1,18 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "test"
+              // Missing comma and value field
+            }
+          }
+        ]
+      }
+    }
+  }

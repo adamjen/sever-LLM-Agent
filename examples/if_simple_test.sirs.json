@@ -1,0 +1,57 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "x",
+              "type": "i32",
+              "value": {"literal": 5}
+            }
+          },
+          {
+            "let": {
+              "name": "result",
+              "type": "i32",
+              "mutable": true,
+              "value": {"literal": 0}
+            }
+          },
+          {
+            "if": {
+              "condition": {
+                "op": {
+                  "kind": "gt",
+                  "args": [{"var": "x"}, {"literal": 10}]
+                }
+              },
+              "then": [
+                {
+                  "assign": {
+                    "target": {"var": "result"},
+                    "value": {"literal": 100}
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "assign": {
+                    "target": {"var": "result"},
+                    "value": {"literal": 50}
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "return": {"var": "result"}
+          }
+        ]
+      }
+    }
+  }
+}

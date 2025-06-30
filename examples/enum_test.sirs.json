@@ -1,0 +1,82 @@
+{
+  "program": {
+    "entry": "main",
+    "types": {
+      "Color": {
+        "enum": {
+          "name": "Color",
+          "variants": {
+            "Red": null,
+            "Green": null,
+            "Blue": null
+          }
+        }
+      }
+    },
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "color",
+              "value": {
+                "enum": {
+                  "type": "Color",
+                  "variant": "Red"
+                }
+              }
+            }
+          },
+          {
+            "match": {
+              "value": {"var": "color"},
+              "cases": [
+                {
+                  "pattern": {
+                    "enum": {
+                      "type": "Color",
+                      "variant": "Red"
+                    }
+                  },
+                  "body": [
+                    {
+                      "return": {"literal": 1}
+                    }
+                  ]
+                },
+                {
+                  "pattern": {
+                    "enum": {
+                      "type": "Color",
+                      "variant": "Green"
+                    }
+                  },
+                  "body": [
+                    {
+                      "return": {"literal": 2}
+                    }
+                  ]
+                },
+                {
+                  "pattern": {
+                    "enum": {
+                      "type": "Color",
+                      "variant": "Blue"
+                    }
+                  },
+                  "body": [
+                    {
+                      "return": {"literal": 3}
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

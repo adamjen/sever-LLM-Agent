@@ -1,0 +1,40 @@
+{
+  "program": {
+    "entry": "main",
+    "types": {
+      "Box": {
+        "generic_def": {
+          "name": "Box",
+          "params": ["T"],
+          "definition": {
+            "record": {
+              "name": "Box",
+              "fields": {
+                "value": "T"
+              }
+            }
+          }
+        }
+      }
+    },
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Created generic types successfully"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

@@ -34,6 +34,12 @@ pub fn main() !void {
             return;
         }
         try testCommand(allocator, args[2]);
+    } else if (std.mem.eql(u8, command, "doc")) {
+        if (args.len < 3) {
+            print("Error: doc command requires input file\n", .{});
+            return;
+        }
+        try docCommand(allocator, args[2]);
     } else if (std.mem.eql(u8, command, "serve")) {
         try serveCommand(allocator);
     } else {
@@ -60,6 +66,16 @@ fn testCommand(allocator: Allocator, input_file: []const u8) !void {
     
     try compiler.test_program(input_file);
     print("Tests passed\n", .{});
+}
+
+fn docCommand(allocator: Allocator, input_file: []const u8) !void {
+    print("Generating documentation for: {s}\n", .{input_file});
+    
+    var compiler = SeverCompiler.init(allocator);
+    defer compiler.deinit();
+    
+    try compiler.generate_docs(input_file);
+    print("Documentation generated\n", .{});
 }
 
 fn serveCommand(allocator: Allocator) !void {

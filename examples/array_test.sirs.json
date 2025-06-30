@@ -1,0 +1,57 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "numbers",
+              "value": {
+                "array": [
+                  {"literal": 10},
+                  {"literal": 20},
+                  {"literal": 30}
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "first",
+              "type": "i32",
+              "value": {
+                "index": {
+                  "array": {"var": "numbers"},
+                  "index": {"literal": 0}
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "second",
+              "type": "i32",
+              "value": {
+                "index": {
+                  "array": {"var": "numbers"},
+                  "index": {"literal": 1}
+                }
+              }
+            }
+          },
+          {
+            "return": {
+              "op": {
+                "kind": "add",
+                "args": [{"var": "first"}, {"var": "second"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

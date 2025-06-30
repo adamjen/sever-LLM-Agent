@@ -1,0 +1,84 @@
+{
+  "program": {
+    "entry": "main",
+    "types": {
+      "DivisionError": {
+        "error": {
+          "name": "DivisionError",
+          "message_type": "str"
+        }
+      },
+      "ValidationError": {
+        "error": {
+          "name": "ValidationError"
+        }
+      }
+    },
+    "functions": {
+      "divide": {
+        "args": [
+          {"name": "a", "type": "i32"},
+          {"name": "b", "type": "i32"}
+        ],
+        "return": "i32",
+        "body": [
+          {
+            "if": {
+              "condition": {"op": {"kind": "eq", "args": [{"var": "b"}, {"literal": 0}]}},
+              "then": [
+                {
+                  "throw": {"literal": "Division by zero"}
+                }
+              ]
+            }
+          },
+          {
+            "return": {"op": {"kind": "div", "args": [{"var": "a"}, {"var": "b"}]}}
+          }
+        ]
+      },
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "try": {
+              "body": [
+                {
+                  "let": {
+                    "name": "result",
+                    "value": {"call": {"function": "divide", "args": [{"literal": 10}, {"literal": 0}]}}
+                  }
+                },
+                {
+                  "expression": {"call": {"function": "std_print_int", "args": [{"var": "result"}]}}
+                }
+              ],
+              "catch": [
+                {
+                  "variable": "error",
+                  "body": [
+                    {
+                      "expression": {"call": {"function": "std_print", "args": [{"literal": "Caught exception"}]}}
+                    },
+                    {
+                      "expression": {"call": {"function": "std_print", "args": [{"literal": "Error details"}]}}
+                    }
+                  ]
+                }
+              ],
+              "finally": [
+                {
+                  "expression": {"call": {"function": "std_print", "args": [{"literal": "Cleanup completed"}]}}
+                }
+              ]
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

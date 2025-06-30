@@ -1,0 +1,42 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "x",
+              "type": "i32",
+              "mutable": true,
+              "value": {"literal": 10}
+            }
+          },
+          {
+            "assign": {
+              "target": {"var": "x"},
+              "value": {"literal": 20}
+            }
+          },
+          {
+            "let": {
+              "name": "y",
+              "type": "i32", 
+              "value": {
+                "op": {
+                  "kind": "add",
+                  "args": [{"var": "x"}, {"literal": 5}]
+                }
+              }
+            }
+          },
+          {
+            "return": {"var": "y"}
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Testing File I/O operations..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "test_file",
+              "type": "str",
+              "value": {"literal": "test_output.txt"}
+            }
+          },
+          {
+            "let": {
+              "name": "test_content",
+              "type": "str",
+              "value": {"literal": "Hello, World! This is a test file."}
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Writing to file..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "write_success",
+              "type": "bool",
+              "value": {
+                "call": {
+                  "function": "file_write",
+                  "args": [{"var": "test_file"}, {"var": "test_content"}]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "condition": {"var": "write_success"},
+              "then": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "File written successfully!"}]
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "Failed to write file!"}]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Reading file back..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "file_content",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "file_read",
+                  "args": [{"var": "test_file"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "file_content"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Appending to file..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "append_success",
+              "type": "bool",
+              "value": {
+                "call": {
+                  "function": "file_append",
+                  "args": [{"var": "test_file"}, {"literal": " Appended text!"}]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "condition": {"var": "append_success"},
+              "then": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "Append successful! Final file content:"}]
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "Append failed! Final file content:"}]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "let": {
+              "name": "final_content",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "file_read",
+                  "args": [{"var": "test_file"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "final_content"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "File I/O test complete"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "program": {
+    "entry": "main",
+    "interfaces": {
+      "Drawable": {
+        "name": "Drawable",
+        "methods": {
+          "draw": {
+            "args": [],
+            "return": "void"
+          }
+        }
+      }
+    },
+    "trait_impls": [
+      {
+        "trait_name": "Drawable",
+        "target_type": "i32",
+        "methods": {
+          "draw": {
+            "args": [
+              {"name": "self", "type": "i32"}
+            ],
+            "return": "void",
+            "body": [
+              {
+                "expression": {
+                  "call": {
+                    "function": "std_print",
+                    "args": [{"literal": "Drawing an integer"}]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Interface system test complete"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

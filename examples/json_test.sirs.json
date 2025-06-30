@@ -1,0 +1,185 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Testing JSON operations..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "test_json",
+              "type": "str",
+              "value": {"literal": "{\\\"name\\\": \\\"John\\\", \\\"age\\\": 30, \\\"active\\\": true}"}
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Original JSON:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "test_json"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Parsing and formatting JSON..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "formatted_json",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "json_parse",
+                  "args": [{"var": "test_json"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "formatted_json"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Extracting values..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "name_value",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "json_get_string",
+                  "args": [{"var": "test_json"}, {"literal": "name"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "name_value"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "has_age",
+              "type": "bool",
+              "value": {
+                "call": {
+                  "function": "json_has_key",
+                  "args": [{"var": "test_json"}, {"literal": "age"}]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "condition": {"var": "has_age"},
+              "then": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "Age field exists!"}]
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "Age field not found!"}]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "let": {
+              "name": "active_value",
+              "type": "bool",
+              "value": {
+                "call": {
+                  "function": "json_get_bool",
+                  "args": [{"var": "test_json"}, {"literal": "active"}]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "condition": {"var": "active_value"},
+              "then": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "User is active!"}]
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "User is not active!"}]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "JSON test complete"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

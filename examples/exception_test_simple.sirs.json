@@ -1,0 +1,46 @@
+{
+  "program": {
+    "entry": "main",
+    "types": {
+      "MyError": {
+        "error": {
+          "name": "MyError"
+        }
+      }
+    },
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "try": {
+              "body": [
+                {
+                  "expression": {"call": {"function": "std_print", "args": [{"literal": "Executing try block"}]}}
+                }
+              ],
+              "catch": [
+                {
+                  "body": [
+                    {
+                      "expression": {"call": {"function": "std_print", "args": [{"literal": "Caught exception"}]}}
+                    }
+                  ]
+                }
+              ],
+              "finally": [
+                {
+                  "expression": {"call": {"function": "std_print", "args": [{"literal": "Finally block executed"}]}}
+                }
+              ]
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

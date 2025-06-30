@@ -1,0 +1,44 @@
+{
+  "program": {
+    "entry": "main",
+    "types": {
+      "IntOrString": {
+        "discriminated_union": {
+          "name": "IntOrString",
+          "variants": [
+            "i32",
+            "str"
+          ]
+        }
+      },
+      "NumberOrBool": {
+        "discriminated_union": {
+          "name": "NumberOrBool", 
+          "variants": [
+            "f64",
+            "bool"
+          ]
+        }
+      }
+    },
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Union types test complete"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

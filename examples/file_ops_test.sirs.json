@@ -1,0 +1,69 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Testing file operations..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "file_exists_result",
+              "type": "bool",
+              "value": {
+                "call": {
+                  "function": "file_exists",
+                  "args": [{"literal": "test_output.txt"}]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "condition": {"var": "file_exists_result"},
+              "then": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "File exists and size retrieved successfully!"}]
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "File does not exist!"}]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Directory operations test complete"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

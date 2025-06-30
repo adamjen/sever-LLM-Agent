@@ -1,0 +1,52 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "point",
+              "value": {
+                "struct": {
+                  "x": {"literal": 10},
+                  "y": {"literal": 20}
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "sum",
+              "type": "i32",
+              "value": {
+                "op": {
+                  "kind": "add",
+                  "args": [
+                    {
+                      "field": {
+                        "object": {"var": "point"},
+                        "field": "x"
+                      }
+                    },
+                    {
+                      "field": {
+                        "object": {"var": "point"},
+                        "field": "y"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "return": {"var": "sum"}
+          }
+        ]
+      }
+    }
+  }
+}

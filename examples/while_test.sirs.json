@@ -1,0 +1,66 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "sum",
+              "type": "i32",
+              "mutable": true,
+              "value": {"literal": 0}
+            }
+          },
+          {
+            "let": {
+              "name": "i",
+              "type": "i32", 
+              "mutable": true,
+              "value": {"literal": 1}
+            }
+          },
+          {
+            "while": {
+              "condition": {
+                "op": {
+                  "kind": "le",
+                  "args": [{"var": "i"}, {"literal": 5}]
+                }
+              },
+              "body": [
+                {
+                  "assign": {
+                    "target": {"var": "sum"},
+                    "value": {
+                      "op": {
+                        "kind": "add",
+                        "args": [{"var": "sum"}, {"var": "i"}]
+                      }
+                    }
+                  }
+                },
+                {
+                  "assign": {
+                    "target": {"var": "i"},
+                    "value": {
+                      "op": {
+                        "kind": "add",
+                        "args": [{"var": "i"}, {"literal": 1}]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "return": {"var": "sum"}
+          }
+        ]
+      }
+    }
+  }
+}

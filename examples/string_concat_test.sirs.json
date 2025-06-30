@@ -1,0 +1,95 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "let": {
+              "name": "greeting",
+              "value": {"literal": "Hello"}
+            }
+          },
+          {
+            "let": {
+              "name": "name",
+              "value": {"literal": "World"}
+            }
+          },
+          {
+            "let": {
+              "name": "message",
+              "value": {
+                "op": {
+                  "kind": "add",
+                  "args": [
+                    {"var": "greeting"},
+                    {"literal": " "}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "full_message",
+              "value": {
+                "op": {
+                  "kind": "add",
+                  "args": [
+                    {"var": "message"},
+                    {"var": "name"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "full_message"}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "num1",
+              "value": {"literal": 10}
+            }
+          },
+          {
+            "let": {
+              "name": "num2",
+              "value": {"literal": 20}
+            }
+          },
+          {
+            "let": {
+              "name": "sum",
+              "value": {
+                "op": {
+                  "kind": "add",
+                  "args": [
+                    {"var": "num1"},
+                    {"var": "num2"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_int",
+                "args": [{"var": "sum"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

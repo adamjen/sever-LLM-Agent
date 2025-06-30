@@ -1,0 +1,44 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "point",
+              "mutable": true,
+              "value": {
+                "struct": {
+                  "x": {"literal": 5},
+                  "y": {"literal": 10}
+                }
+              }
+            }
+          },
+          {
+            "assign": {
+              "target": {
+                "field": {
+                  "object": {"var": "point"},
+                  "field": "x"
+                }
+              },
+              "value": {"literal": 15}
+            }
+          },
+          {
+            "return": {
+              "field": {
+                "object": {"var": "point"},
+                "field": "x"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

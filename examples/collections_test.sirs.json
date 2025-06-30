@@ -1,0 +1,50 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "scores",
+              "value": {
+                "hashmap": {
+                  "alice": {"literal": 95},
+                  "bob": {"literal": 87},
+                  "charlie": {"literal": 92}
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "numbers",
+              "value": {
+                "set": [
+                  {"literal": 1},
+                  {"literal": 2},
+                  {"literal": 3},
+                  {"literal": 4},
+                  {"literal": 5}
+                ]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Created collections successfully"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

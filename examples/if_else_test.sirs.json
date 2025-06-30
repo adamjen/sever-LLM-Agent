@@ -1,0 +1,40 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "x",
+              "type": "i32",
+              "value": {"literal": 5}
+            }
+          },
+          {
+            "if": {
+              "condition": {
+                "op": {
+                  "kind": "gt",
+                  "args": [{"var": "x"}, {"literal": 10}]
+                }
+              },
+              "then": [
+                {
+                  "return": {"literal": 100}
+                }
+              ],
+              "else": [
+                {
+                  "return": {"literal": 50}
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

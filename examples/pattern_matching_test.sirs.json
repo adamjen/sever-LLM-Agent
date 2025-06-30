@@ -1,0 +1,50 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "x",
+              "value": {"literal": 42}
+            }
+          },
+          {
+            "match": {
+              "value": {"var": "x"},
+              "cases": [
+                {
+                  "pattern": {"literal": 0},
+                  "body": [
+                    {
+                      "return": {"literal": 100}
+                    }
+                  ]
+                },
+                {
+                  "pattern": {"literal": 42},
+                  "body": [
+                    {
+                      "return": {"literal": 200}
+                    }
+                  ]
+                },
+                {
+                  "pattern": {"var": "y"},
+                  "body": [
+                    {
+                      "return": {"var": "y"}
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Testing JSON + HTTP integration..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "api_response",
+              "type": "str",
+              "value": {
+                "call": {
+                  "function": "http_get",
+                  "args": [{"literal": "https://httpbin.org/json"}]
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Raw API response:"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"var": "api_response"}]
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Checking if slideshow exists..."}]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "has_slideshow",
+              "type": "bool",
+              "value": {
+                "call": {
+                  "function": "json_has_key",
+                  "args": [{"var": "api_response"}, {"literal": "slideshow"}]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "condition": {"var": "has_slideshow"},
+              "then": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "Slideshow data found in API response!"}]
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "No slideshow data found!"}]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "JSON + HTTP integration test complete"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

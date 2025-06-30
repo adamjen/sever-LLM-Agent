@@ -30,17 +30,25 @@ pub const TypeChecker = struct {
     variables: StringHashMap(Type),
     // Current function context
     current_function: ?*Function,
+    // Arena for type allocations
+    type_ptrs: ArrayList(*Type),
     
     pub fn init(allocator: Allocator) TypeChecker {
         return TypeChecker{
             .allocator = allocator,
             .variables = StringHashMap(Type).init(allocator),
             .current_function = null,
+            .type_ptrs = ArrayList(*Type).init(allocator),
         };
     }
     
     pub fn deinit(self: *TypeChecker) void {
         self.variables.deinit();
+        // Free all type pointers
+        for (self.type_ptrs.items) |type_ptr| {
+            self.allocator.destroy(type_ptr);
+        }
+        self.type_ptrs.deinit();
     }
     
     pub fn check(self: *TypeChecker, program: *Program) TypeCheckError!void {
@@ -57,6 +65,11 @@ pub const TypeChecker = struct {
             const function = entry.value_ptr;
             
             try self.checkFunction(func_name, function, program);
+        }
+        
+        // Type check all trait implementations
+        for (program.trait_impls.items) |*trait_impl| {
+            try self.checkTraitImpl(trait_impl, program);
         }
     }
     
@@ -76,7 +89,7 @@ pub const TypeChecker = struct {
         var has_return = false;
         for (function.body.items) |*stmt| {
             try self.checkStatement(stmt, program);
-            if (stmt.* == .@"return") {
+            if (self.statementHasReturn(stmt)) {
                 has_return = true;
             }
         }
@@ -177,6 +190,65 @@ pub const TypeChecker = struct {
             
             .expression => |*expr| {
                 _ = try self.checkExpression(expr, program);
+            },
+            
+            .match => |*match_stmt| {
+                const value_type = try self.checkExpression(&match_stmt.value, program);
+                
+                // Check all patterns are compatible with the value type
+                for (match_stmt.cases.items) |*case| {
+                    try self.checkPattern(&case.pattern, value_type, program);
+                    
+                    // Check statements in this case
+                    for (case.body.items) |*body_stmt| {
+                        try self.checkStatement(body_stmt, program);
+                    }
+                }
+            },
+            
+            .@"try" => |*try_stmt| {
+                // Check try body
+                for (try_stmt.body.items) |*body_stmt| {
+                    try self.checkStatement(body_stmt, program);
+                }
+                
+                // Check catch clauses
+                for (try_stmt.catch_clauses.items) |*catch_clause| {
+                    // If exception type is specified, validate it exists
+                    if (catch_clause.exception_type) |exception_type| {
+                        // Could add validation that exception_type is an error type
+                        _ = exception_type;
+                    }
+                    
+                    // If variable name is specified, add it to scope for catch body
+                    if (catch_clause.variable_name) |var_name| {
+                        const exception_type = catch_clause.exception_type orelse Type.str; // Default to string
+                        try self.variables.put(var_name, exception_type);
+                    }
+                    
+                    // Check catch body
+                    for (catch_clause.body.items) |*catch_stmt| {
+                        try self.checkStatement(catch_stmt, program);
+                    }
+                    
+                    // Remove exception variable from scope
+                    if (catch_clause.variable_name) |var_name| {
+                        _ = self.variables.remove(var_name);
+                    }
+                }
+                
+                // Check finally body
+                if (try_stmt.finally_body) |*finally_stmts| {
+                    for (finally_stmts.items) |*finally_stmt| {
+                        try self.checkStatement(finally_stmt, program);
+                    }
+                }
+            },
+            
+            .@"throw" => |*throw_expr| {
+                const exception_type = try self.checkExpression(throw_expr, program);
+                // Could add validation that throw_expr is an error type or throwable
+                _ = exception_type;
             },
             
             .@"break", .@"continue" => {
@@ -295,6 +367,213 @@ pub const TypeChecker = struct {
                 };
             },
             
+            .@"struct" => |*struct_expr| {
+                // For struct literals, we need to infer the struct type from its fields
+                // This is a simplified version - in a full implementation we'd need 
+                // proper struct type definitions and validation
+                var field_types = std.StringHashMap(*Type).init(self.allocator);
+                
+                var field_iter = struct_expr.iterator();
+                while (field_iter.next()) |entry| {
+                    const field_name = entry.key_ptr.*;
+                    const field_expr = entry.value_ptr;
+                    
+                    const field_type = try self.checkExpression(@constCast(field_expr), program);
+                    const field_type_ptr = try self.createType(field_type);
+                    
+                    const field_name_copy = self.allocator.dupe(u8, field_name) catch return TypeCheckError.OutOfMemory;
+                    field_types.put(field_name_copy, field_type_ptr) catch return TypeCheckError.OutOfMemory;
+                }
+                
+                return Type{ .@"struct" = field_types };
+            },
+            
+            .array => |*array_expr| {
+                // For array literals, infer type from first element
+                if (array_expr.items.len == 0) {
+                    // Empty array - we'd need type annotations in a full implementation
+                    return Type.void; // Placeholder
+                }
+                
+                const first_elem_type = try self.checkExpression(@constCast(&array_expr.items[0]), program);
+                
+                // Check that all elements have the same type
+                for (array_expr.items[1..]) |*elem| {
+                    const elem_type = try self.checkExpression(@constCast(elem), program);
+                    if (!self.typesCompatible(first_elem_type, elem_type)) {
+                        return TypeCheckError.TypeMismatch;
+                    }
+                }
+                
+                // Return slice type for now (dynamic arrays)
+                const elem_type_ptr = try self.createType(first_elem_type);
+                
+                return Type{ .slice = .{ .element = elem_type_ptr } };
+            },
+            
+            .enum_constructor => |*enum_expr| {
+                // Find the enum type in the program's type definitions
+                const enum_type = program.types.get(enum_expr.enum_type) orelse {
+                    return TypeCheckError.UndefinedVariable; // Enum type not found
+                };
+                
+                switch (enum_type) {
+                    .@"enum" => |enum_def| {
+                        // Check if the variant exists in the enum
+                        if (enum_def.variants.get(enum_expr.variant)) |variant_type| {
+                            // If there's an associated value, check its type
+                            if (enum_expr.value) |value_expr| {
+                                if (variant_type) |expected_type| {
+                                    const actual_type = try self.checkExpression(value_expr, program);
+                                    if (!self.typesCompatible(actual_type, expected_type.*)) {
+                                        return TypeCheckError.TypeMismatch;
+                                    }
+                                } else {
+                                    // Variant doesn't expect a value but one was provided
+                                    return TypeCheckError.TypeMismatch;
+                                }
+                            } else if (variant_type != null) {
+                                // Variant expects a value but none was provided
+                                return TypeCheckError.TypeMismatch;
+                            }
+                            
+                            // Return the enum type
+                            return enum_type;
+                        } else {
+                            // Variant doesn't exist in the enum
+                            return TypeCheckError.TypeMismatch;
+                        }
+                    },
+                    else => {
+                        // Not an enum type
+                        return TypeCheckError.TypeMismatch;
+                    },
+                }
+            },
+            
+            .hashmap => |*hashmap_expr| {
+                // For hashmap literals, infer types from key-value pairs
+                if (hashmap_expr.count() == 0) {
+                    // Empty hashmap - would need type annotations in full implementation
+                    return Type.void; // Placeholder
+                }
+                
+                var map_iter = hashmap_expr.iterator();
+                var key_type: ?Type = null;
+                var value_type: ?Type = null;
+                
+                while (map_iter.next()) |entry| {
+                    // For now, assume string keys (could be extended for other key types)
+                    const current_key_type = Type.str;
+                    const current_value_type = try self.checkExpression(@constCast(entry.value_ptr), program);
+                    
+                    if (key_type == null) {
+                        key_type = current_key_type;
+                        value_type = current_value_type;
+                    } else {
+                        // Check type consistency
+                        if (!self.typesCompatible(key_type.?, current_key_type)) {
+                            return TypeCheckError.TypeMismatch;
+                        }
+                        if (!self.typesCompatible(value_type.?, current_value_type)) {
+                            return TypeCheckError.TypeMismatch;
+                        }
+                    }
+                }
+                
+                const key_type_ptr = try self.createType(key_type.?);
+                const value_type_ptr = try self.createType(value_type.?);
+                
+                return Type{ .hashmap = .{ .key = key_type_ptr, .value = value_type_ptr } };
+            },
+            
+            .set => |*set_expr| {
+                // For set literals, infer type from elements
+                if (set_expr.items.len == 0) {
+                    // Empty set - would need type annotations in full implementation
+                    return Type.void; // Placeholder
+                }
+                
+                const first_elem_type = try self.checkExpression(@constCast(&set_expr.items[0]), program);
+                
+                // Check that all elements have the same type
+                for (set_expr.items[1..]) |*elem| {
+                    const elem_type = try self.checkExpression(@constCast(elem), program);
+                    if (!self.typesCompatible(first_elem_type, elem_type)) {
+                        return TypeCheckError.TypeMismatch;
+                    }
+                }
+                
+                const elem_type_ptr = try self.createType(first_elem_type);
+                return Type{ .set = .{ .element = elem_type_ptr } };
+            },
+            
+            .tuple => |*tuple_expr| {
+                // For tuple literals, infer types from elements
+                if (tuple_expr.items.len == 0) {
+                    // Empty tuple
+                    return Type{ .tuple = ArrayList(*Type).init(self.allocator) };
+                }
+                
+                var element_types = ArrayList(*Type).init(self.allocator);
+                
+                for (tuple_expr.items) |*elem| {
+                    const elem_type = try self.checkExpression(@constCast(elem), program);
+                    const elem_type_ptr = try self.createType(elem_type);
+                    try element_types.append(elem_type_ptr);
+                }
+                
+                return Type{ .tuple = element_types };
+            },
+            
+            .record => |*record_expr| {
+                // Find the record type definition
+                const record_type = program.types.get(record_expr.type_name) orelse {
+                    return TypeCheckError.UndefinedVariable; // Record type not found
+                };
+                
+                switch (record_type) {
+                    .record => |record_def| {
+                        // Check that all required fields are provided and have correct types
+                        var provided_fields = std.StringHashMap(bool).init(self.allocator);
+                        defer provided_fields.deinit();
+                        
+                        var field_iter = record_expr.fields.iterator();
+                        while (field_iter.next()) |entry| {
+                            const field_name = entry.key_ptr.*;
+                            const field_expr = entry.value_ptr;
+                            
+                            // Check if field exists in record type
+                            if (record_def.fields.get(field_name)) |expected_type| {
+                                const actual_type = try self.checkExpression(@constCast(field_expr), program);
+                                if (!self.typesCompatible(actual_type, expected_type.*)) {
+                                    return TypeCheckError.TypeMismatch;
+                                }
+                                try provided_fields.put(field_name, true);
+                            } else {
+                                // Field doesn't exist in record type
+                                return TypeCheckError.TypeMismatch;
+                            }
+                        }
+                        
+                        // Check that all required fields are provided
+                        var type_field_iter = record_def.fields.iterator();
+                        while (type_field_iter.next()) |entry| {
+                            if (!provided_fields.contains(entry.key_ptr.*)) {
+                                // Missing required field
+                                return TypeCheckError.TypeMismatch;
+                            }
+                        }
+                        
+                        return record_type;
+                    },
+                    else => {
+                        // Not a record type
+                        return TypeCheckError.TypeMismatch;
+                    },
+                }
+            },
+            
             else => {
                 // Handle other expression types
                 return Type.void;
@@ -342,7 +621,26 @@ pub const TypeChecker = struct {
         const args = &op_expr.args;
         
         switch (op_expr.kind) {
-            .add, .sub, .mul, .div, .mod => {
+            .add => {
+                if (args.items.len != 2) return TypeCheckError.InvalidOperation;
+                
+                const left_type = try self.checkExpression(@constCast(&args.items[0]), program);
+                const right_type = try self.checkExpression(@constCast(&args.items[1]), program);
+                
+                // Handle string concatenation
+                if (left_type == .str and right_type == .str) {
+                    return Type.str;
+                }
+                
+                // Handle numeric addition
+                if (self.isNumericType(left_type) and self.isNumericType(right_type)) {
+                    return self.getArithmeticResultType(left_type, right_type);
+                }
+                
+                return TypeCheckError.TypeMismatch;
+            },
+            
+            .sub, .mul, .div, .mod => {
                 if (args.items.len != 2) return TypeCheckError.InvalidOperation;
                 
                 const left_type = try self.checkExpression(@constCast(&args.items[0]), program);
@@ -462,7 +760,38 @@ pub const TypeChecker = struct {
     fn isBuiltinFunction(_: *TypeChecker, function_name: []const u8) bool {
         return std.mem.eql(u8, function_name, "std_print") or
                std.mem.eql(u8, function_name, "std_print_int") or
-               std.mem.eql(u8, function_name, "std_print_float");
+               std.mem.eql(u8, function_name, "std_print_float") or
+               std.mem.eql(u8, function_name, "http_get") or
+               std.mem.eql(u8, function_name, "http_post") or
+               std.mem.eql(u8, function_name, "http_put") or
+               std.mem.eql(u8, function_name, "http_delete") or
+               std.mem.eql(u8, function_name, "file_read") or
+               std.mem.eql(u8, function_name, "file_write") or
+               std.mem.eql(u8, function_name, "file_append") or
+               std.mem.eql(u8, function_name, "file_exists") or
+               std.mem.eql(u8, function_name, "file_delete") or
+               std.mem.eql(u8, function_name, "file_size") or
+               std.mem.eql(u8, function_name, "dir_create") or
+               std.mem.eql(u8, function_name, "dir_exists") or
+               std.mem.eql(u8, function_name, "dir_list") or
+               std.mem.eql(u8, function_name, "json_parse") or
+               std.mem.eql(u8, function_name, "json_get_string") or
+               std.mem.eql(u8, function_name, "json_get_number") or
+               std.mem.eql(u8, function_name, "json_get_bool") or
+               std.mem.eql(u8, function_name, "json_has_key") or
+               std.mem.eql(u8, function_name, "json_stringify_object") or
+               std.mem.eql(u8, function_name, "json_stringify_array") or
+               std.mem.eql(u8, function_name, "str_length") or
+               std.mem.eql(u8, function_name, "str_substring") or
+               std.mem.eql(u8, function_name, "str_contains") or
+               std.mem.eql(u8, function_name, "str_starts_with") or
+               std.mem.eql(u8, function_name, "str_ends_with") or
+               std.mem.eql(u8, function_name, "str_index_of") or
+               std.mem.eql(u8, function_name, "str_replace") or
+               std.mem.eql(u8, function_name, "str_to_upper") or
+               std.mem.eql(u8, function_name, "str_to_lower") or
+               std.mem.eql(u8, function_name, "str_trim") or
+               std.mem.eql(u8, function_name, "str_equals");
     }
     
     fn checkBuiltinFunction(self: *TypeChecker, call_expr: anytype, program: *Program) TypeCheckError!Type {
@@ -498,8 +827,569 @@ pub const TypeChecker = struct {
                 return TypeCheckError.ArgumentTypeMismatch;
             }
             return Type.void;
+        } else if (std.mem.eql(u8, function_name, "http_get")) {
+            // http_get(url: []const u8) []const u8
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "http_post")) {
+            // http_post(url: []const u8, body: []const u8) []const u8
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const url_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const body_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (url_type != .str or body_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "http_put")) {
+            // http_put(url: []const u8, body: []const u8) []const u8
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const url_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const body_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (url_type != .str or body_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "http_delete")) {
+            // http_delete(url: []const u8) []const u8
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "file_read")) {
+            // file_read(path: []const u8) []const u8
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "file_write")) {
+            // file_write(path: []const u8, content: []const u8) bool
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const path_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const content_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (path_type != .str or content_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "file_append")) {
+            // file_append(path: []const u8, content: []const u8) bool
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const path_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const content_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (path_type != .str or content_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "file_exists")) {
+            // file_exists(path: []const u8) bool
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "file_delete")) {
+            // file_delete(path: []const u8) bool
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "file_size")) {
+            // file_size(path: []const u8) i64
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.i64;
+        } else if (std.mem.eql(u8, function_name, "dir_create")) {
+            // dir_create(path: []const u8) bool
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "dir_exists")) {
+            // dir_exists(path: []const u8) bool
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "dir_list")) {
+            // dir_list(path: []const u8) []const u8
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "json_parse")) {
+            // json_parse(json_str: []const u8) []const u8
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "json_get_string")) {
+            // json_get_string(json_str: []const u8, key: []const u8) []const u8
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const json_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const key_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (json_type != .str or key_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "json_get_number")) {
+            // json_get_number(json_str: []const u8, key: []const u8) f64
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const json_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const key_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (json_type != .str or key_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.f64;
+        } else if (std.mem.eql(u8, function_name, "json_get_bool")) {
+            // json_get_bool(json_str: []const u8, key: []const u8) bool
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const json_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const key_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (json_type != .str or key_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "json_has_key")) {
+            // json_has_key(json_str: []const u8, key: []const u8) bool
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const json_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const key_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (json_type != .str or key_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "json_stringify_object")) {
+            // json_stringify_object(keys: []const []const u8, values: []const []const u8) []const u8
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            // For now, just check that both arguments are expressions - proper array type checking would be more complex
+            _ = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            _ = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "json_stringify_array")) {
+            // json_stringify_array(values: []const []const u8) []const u8
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            // For now, just check that the argument is an expression - proper array type checking would be more complex
+            _ = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "str_length")) {
+            // str_length(s: []const u8) i32
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.i32;
+        } else if (std.mem.eql(u8, function_name, "str_substring")) {
+            // str_substring(s: []const u8, start: i64, end: i64) []const u8
+            if (call_expr.args.items.len != 3) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const str_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const start_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            const end_type = try self.checkExpression(@constCast(&call_expr.args.items[2]), program);
+            if (str_type != .str or start_type != .i64 or end_type != .i64) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "str_contains")) {
+            // str_contains(s: []const u8, needle: []const u8) bool
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const str_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const needle_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (str_type != .str or needle_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "str_starts_with")) {
+            // str_starts_with(s: []const u8, prefix: []const u8) bool
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const str_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const prefix_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (str_type != .str or prefix_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "str_ends_with")) {
+            // str_ends_with(s: []const u8, suffix: []const u8) bool
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const str_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const suffix_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (str_type != .str or suffix_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
+        } else if (std.mem.eql(u8, function_name, "str_index_of")) {
+            // str_index_of(s: []const u8, needle: []const u8) i64
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const str_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const needle_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (str_type != .str or needle_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.i64;
+        } else if (std.mem.eql(u8, function_name, "str_replace")) {
+            // str_replace(s: []const u8, needle: []const u8, replacement: []const u8) []const u8
+            if (call_expr.args.items.len != 3) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const str_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const needle_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            const replacement_type = try self.checkExpression(@constCast(&call_expr.args.items[2]), program);
+            if (str_type != .str or needle_type != .str or replacement_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "str_to_upper")) {
+            // str_to_upper(s: []const u8) []const u8
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "str_to_lower")) {
+            // str_to_lower(s: []const u8) []const u8
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "str_trim")) {
+            // str_trim(s: []const u8) []const u8
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (arg_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.str;
+        } else if (std.mem.eql(u8, function_name, "str_equals")) {
+            // str_equals(a: []const u8, b: []const u8) bool
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const str1_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const str2_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (str1_type != .str or str2_type != .str) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
         }
         
         return TypeCheckError.UndefinedFunction;
+    }
+    
+    fn createType(self: *TypeChecker, type_value: Type) TypeCheckError!*Type {
+        const type_ptr = self.allocator.create(Type) catch return TypeCheckError.OutOfMemory;
+        type_ptr.* = type_value;
+        self.type_ptrs.append(type_ptr) catch return TypeCheckError.OutOfMemory;
+        return type_ptr;
+    }
+    
+    fn statementHasReturn(self: *TypeChecker, stmt: *Statement) bool {
+        return switch (stmt.*) {
+            .@"return" => true,
+            .@"if" => |*if_stmt| {
+                // Check if both branches have returns
+                var then_has_return = false;
+                for (if_stmt.then.items) |*then_stmt| {
+                    if (self.statementHasReturn(then_stmt)) {
+                        then_has_return = true;
+                        break;
+                    }
+                }
+                
+                if (if_stmt.@"else") |*else_stmts| {
+                    var else_has_return = false;
+                    for (else_stmts.items) |*else_stmt| {
+                        if (self.statementHasReturn(else_stmt)) {
+                            else_has_return = true;
+                            break;
+                        }
+                    }
+                    return then_has_return and else_has_return;
+                } else {
+                    return false; // if without else can't guarantee return
+                }
+            },
+            .match => |*match_stmt| {
+                // Check if all match cases have returns
+                for (match_stmt.cases.items) |*case| {
+                    var case_has_return = false;
+                    for (case.body.items) |*case_stmt| {
+                        if (self.statementHasReturn(case_stmt)) {
+                            case_has_return = true;
+                            break;
+                        }
+                    }
+                    if (!case_has_return) {
+                        return false; // if any case doesn't have return, match doesn't guarantee return
+                    }
+                }
+                return match_stmt.cases.items.len > 0; // all cases have returns
+            },
+            .@"while" => |*while_stmt| {
+                // While loops don't guarantee execution, so can't guarantee return
+                _ = while_stmt;
+                return false;
+            },
+            else => false,
+        };
+    }
+    
+    fn checkPattern(self: *TypeChecker, pattern: *SirsParser.Pattern, expected_type: Type, program: *Program) TypeCheckError!void {
+        switch (pattern.*) {
+            .literal => |literal| {
+                // Check that literal type matches expected type
+                const literal_type = switch (literal) {
+                    .integer => Type{ .i32 = {} },
+                    .float => Type{ .f64 = {} },
+                    .string => Type{ .str = {} },
+                    .boolean => Type{ .bool = {} },
+                    .null => Type{ .void = {} }, // Simplified - should check specific optional type
+                };
+                
+                if (!self.typesCompatible(literal_type, expected_type)) {
+                    return TypeCheckError.TypeMismatch;
+                }
+            },
+            
+            .variable => |var_name| {
+                // Variable patterns bind the value to a new variable
+                // Add it to the symbol table with the expected type
+                self.variables.put(var_name, expected_type) catch return TypeCheckError.OutOfMemory;
+            },
+            
+            .wildcard => {
+                // Wildcard matches anything, no type checking needed
+            },
+            
+            .@"struct" => |*struct_patterns| {
+                // Expected type must be a struct
+                switch (expected_type) {
+                    .@"struct" => |expected_struct_fields| {
+                        // Check each field pattern
+                        var pattern_iter = struct_patterns.iterator();
+                        while (pattern_iter.next()) |pattern_entry| {
+                            const field_name = pattern_entry.key_ptr.*;
+                            const field_pattern = pattern_entry.value_ptr;
+                            
+                            // Find the expected field type
+                            if (expected_struct_fields.get(field_name)) |expected_field_type| {
+                                try self.checkPattern(field_pattern, expected_field_type.*, program);
+                            } else {
+                                // Field doesn't exist in the expected struct type
+                                return TypeCheckError.TypeMismatch;
+                            }
+                        }
+                    },
+                    else => {
+                        // Cannot match struct pattern against non-struct type
+                        return TypeCheckError.TypeMismatch;
+                    },
+                }
+            },
+            
+            .@"enum" => |*enum_pattern| {
+                // Expected type must be the same enum
+                switch (expected_type) {
+                    .@"enum" => |expected_enum| {
+                        // Check enum type name matches
+                        if (!std.mem.eql(u8, enum_pattern.enum_type, expected_enum.name)) {
+                            return TypeCheckError.TypeMismatch;
+                        }
+                        
+                        // Check variant exists in the enum
+                        if (expected_enum.variants.get(enum_pattern.variant)) |variant_type| {
+                            // If there's an associated value, check the pattern matches the type
+                            if (enum_pattern.value_pattern) |value_pattern| {
+                                if (variant_type) |vtype| {
+                                    try self.checkPattern(value_pattern, vtype.*, program);
+                                } else {
+                                    // Pattern expects a value but variant has none
+                                    return TypeCheckError.TypeMismatch;
+                                }
+                            }
+                        } else {
+                            // Variant doesn't exist in the enum
+                            return TypeCheckError.TypeMismatch;
+                        }
+                    },
+                    else => {
+                        // Cannot match enum pattern against non-enum type
+                        return TypeCheckError.TypeMismatch;
+                    },
+                }
+            },
+        }
+    }
+    
+    fn typesEqual(self: *TypeChecker, type1: Type, type2: Type) bool {
+        
+        switch (type1) {
+            .void, .bool, .i8, .i16, .i32, .i64, .u8, .u16, .u32, .u64, .f32, .f64, .str => {
+                return std.meta.activeTag(type1) == std.meta.activeTag(type2);
+            },
+            .array => |array1| {
+                if (type2 != .array) return false;
+                const array2 = type2.array;
+                return array1.size == array2.size and self.typesEqual(array1.element.*, array2.element.*);
+            },
+            .slice => |slice1| {
+                if (type2 != .slice) return false;
+                const slice2 = type2.slice;
+                return self.typesEqual(slice1.element.*, slice2.element.*);
+            },
+            .optional => |opt1| {
+                if (type2 != .optional) return false;
+                const opt2 = type2.optional;
+                return self.typesEqual(opt1.*, opt2.*);
+            },
+            .discriminated_union => |union1| {
+                if (type2 != .discriminated_union) return false;
+                const union2 = type2.discriminated_union;
+                
+                // Check if names match
+                if (!std.mem.eql(u8, union1.name, union2.name)) return false;
+                
+                // Check if variant counts match
+                if (union1.variants.items.len != union2.variants.items.len) return false;
+                
+                // Check if all variants match
+                for (union1.variants.items, union2.variants.items) |var1, var2| {
+                    if (!self.typesEqual(var1.*, var2.*)) return false;
+                }
+                
+                return true;
+            },
+            else => {
+                // For complex types, just compare tags for now
+                return std.meta.activeTag(type1) == std.meta.activeTag(type2);
+            },
+        }
+    }
+    
+    fn checkTraitImpl(self: *TypeChecker, trait_impl: *SirsParser.TraitImpl, program: *Program) TypeCheckError!void {
+        // Check that the trait/interface exists
+        if (!program.interfaces.contains(trait_impl.trait_name)) {
+            std.debug.print("Error: Interface '{s}' not found\n", .{trait_impl.trait_name});
+            return TypeCheckError.UndefinedFunction; // Reusing error type
+        }
+        
+        const interface = program.interfaces.get(trait_impl.trait_name).?;
+        
+        // Check that all required methods are implemented
+        var method_iter = interface.methods.iterator();
+        while (method_iter.next()) |method_entry| {
+            const method_name = method_entry.key_ptr.*;
+            const required_signature = method_entry.value_ptr;
+            
+            if (!trait_impl.methods.contains(method_name)) {
+                std.debug.print("Error: Method '{s}' required by interface '{s}' not implemented\n", .{ method_name, trait_impl.trait_name });
+                return TypeCheckError.UndefinedFunction;
+            }
+            
+            const implemented_function = trait_impl.methods.get(method_name).?;
+            
+            // Check that method signature matches (implementation includes 'self' parameter)
+            if (implemented_function.args.items.len != required_signature.args.items.len + 1) {
+                std.debug.print("Error: Method '{s}' has incorrect number of parameters\n", .{method_name});
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            
+            // Check argument types (skip first argument which is 'self')
+            for (implemented_function.args.items[1..], required_signature.args.items) |impl_param, required_type| {
+                if (!self.typesEqual(impl_param.type, required_type)) {
+                    std.debug.print("Error: Method '{s}' parameter type mismatch\n", .{method_name});
+                    return TypeCheckError.ArgumentTypeMismatch;
+                }
+            }
+            
+            // Check return type
+            if (!self.typesEqual(implemented_function.@"return", required_signature.@"return")) {
+                std.debug.print("Error: Method '{s}' return type mismatch\n", .{method_name});
+                return TypeCheckError.ReturnTypeMismatch;
+            }
+            
+            // Type check the method implementation
+            try self.checkFunction(method_name, @constCast(&implemented_function), program);
+        }
     }
 };

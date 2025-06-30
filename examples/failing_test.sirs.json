@@ -1,0 +1,33 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "x",
+              "value": {"literal": 10}
+            }
+          },
+          {
+            "let": {
+              "name": "y",
+              "value": {"literal": 0}
+            }
+          },
+          {
+            "return": {
+              "op": {
+                "kind": "div",
+                "args": [{"var": "x"}, {"var": "y"}]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

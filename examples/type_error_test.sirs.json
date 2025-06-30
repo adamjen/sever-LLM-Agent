@@ -1,0 +1,23 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "x",
+              "type": "i32",
+              "value": {"literal": "this is a string, not an integer"}
+            }
+          },
+          {
+            "return": {"var": "x"}
+          }
+        ]
+      }
+    }
+  }
+}
