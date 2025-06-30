@@ -8,10 +8,14 @@ pub fn printUsage() !void {
     print("  build <file.sirs.json>    Compile SIRS program to native binary\n", .{});
     print("  test <file.sirs.json>     Run tests for SIRS program\n", .{});
     print("  doc <file.sirs.json>      Generate documentation for SIRS program\n", .{});
+    print("  fmt <file.sirs.json>      Format SIRS program with consistent style\n", .{});
+    print("  repl                      Start interactive REPL mode\n", .{});
     print("  serve                     Start MCP server for LLM integration\n\n", .{});
     print("Examples:\n", .{});
     print("  sev build program.sirs.json\n", .{});
     print("  sev test program.sirs.json\n", .{});
     print("  sev doc program.sirs.json\n", .{});
+    print("  sev fmt program.sirs.json\n", .{});
+    print("  sev repl\n", .{});
     print("  sev serve\n", .{});
 }

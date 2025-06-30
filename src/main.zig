@@ -6,6 +6,7 @@ const Allocator = std.mem.Allocator;
 const SeverCompiler = @import("compiler.zig").SeverCompiler;
 const SirsParser = @import("sirs.zig");
 const CLI = @import("cli.zig");
+const SirsFormatter = @import("formatter.zig").SirsFormatter;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -40,6 +41,14 @@ pub fn main() !void {
             return;
         }
         try docCommand(allocator, args[2]);
+    } else if (std.mem.eql(u8, command, "fmt")) {
+        if (args.len < 3) {
+            print("Error: fmt command requires input file\n", .{});
+            return;
+        }
+        try fmtCommand(allocator, args[2]);
+    } else if (std.mem.eql(u8, command, "repl")) {
+        try replCommand(allocator);
     } else if (std.mem.eql(u8, command, "serve")) {
         try serveCommand(allocator);
     } else {
@@ -76,6 +85,27 @@ fn docCommand(allocator: Allocator, input_file: []const u8) !void {
     
     try compiler.generate_docs(input_file);
     print("Documentation generated\n", .{});
+}
+
+fn fmtCommand(allocator: Allocator, input_file: []const u8) !void {
+    print("Formatting Sever program: {s}\n", .{input_file});
+    
+    var formatter = SirsFormatter.init(allocator);
+    defer formatter.deinit();
+    
+    try formatter.formatFile(input_file, null); // Format in place
+    print("Formatting complete\n", .{});
+}
+
+fn replCommand(allocator: Allocator) !void {
+    print("Starting Sever REPL (Read-Eval-Print Loop)\n", .{});
+    print("Type expressions in SIRS JSON format, or 'exit' to quit.\n", .{});
+    print("Example: {{\"op\": {{\"kind\": \"add\", \"args\": [{{\"literal\": 10}}, {{\"literal\": 20}}]}}}}\n\n", .{});
+    
+    var compiler = SeverCompiler.init(allocator);
+    defer compiler.deinit();
+    
+    try compiler.repl();
 }
 
 fn serveCommand(allocator: Allocator) !void {

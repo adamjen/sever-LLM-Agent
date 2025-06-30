@@ -46,7 +46,13 @@
       "Bash(./json_test)",
       "Bash(./json_http_test)",
       "Bash(./string_test)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(./dist/sev build examples/simple_math.sirs.json)",
+      "Bash(./dist/simple_math)",
+      "Bash(./dist/sev test:*)",
+      "Bash(./dist/sev doc examples/simple_math.sirs.json)",
+      "Bash(./dist/sev doc examples/string_test.sirs.json)",
+      "Bash(./dist/sev:*)"
     ],
     "deny": []
   }

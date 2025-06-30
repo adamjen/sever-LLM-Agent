@@ -1385,7 +1385,8 @@ pub const CodeGen = struct {
         // Extract just the basename for the package name  
         const basename = std.fs.path.basename(output_file);
         
-        const cmd = std.fmt.allocPrint(self.allocator, "zig build-exe {s} -O ReleaseFast --name {s}", .{ zig_file, basename }) catch return CodeGenError.OutOfMemory;
+        // Use the full output_file path which already includes dist/
+        const cmd = std.fmt.allocPrint(self.allocator, "zig build-exe {s} -O ReleaseFast --name {s} -femit-bin={s}", .{ zig_file, basename, output_file }) catch return CodeGenError.OutOfMemory;
         defer self.allocator.free(cmd);
         
         const result = std.process.Child.run(.{

@@ -3,6 +3,12 @@ zig-out/
 zig-cache/
 .zig-cache/
 
+# Sever build outputs
+dist/
+
+# Generated documentation
+examples/*.md
+
 # Editor and IDE files
 .vscode/
 .idea/

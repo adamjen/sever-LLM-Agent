@@ -13,10 +13,10 @@ cd sever1
 zig build
 
 # Compile a Sever program
-./zig-out/bin/sev build examples/simple_math.sirs.json
+./dist/sev build examples/simple_math.sirs.json
 
 # Run the compiled binary
-./simple_math
+./dist/simple_math
 # Output: 230
 ```
 
@@ -115,17 +115,17 @@ SIRS JSON → Parser → Type Checker → Code Generator → Native Binary
 
 ### CLI Compiler (`sev`)
 ```bash
-# Compile SIRS to native binary
-sev build program.sirs.json
+# Compile SIRS to native binary (outputs to dist/)
+./dist/sev build program.sirs.json
 
 # Run tests on SIRS program
-sev test program.sirs.json
+./dist/sev test program.sirs.json
 
 # Generate documentation  
-sev doc program.sirs.json
+./dist/sev doc program.sirs.json
 
 # Start MCP server for LLM integration
-sev serve
+./dist/sev serve
 ```
 
 ### MCP Integration

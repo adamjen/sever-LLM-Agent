@@ -17,7 +17,11 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("runtime/sever_runtime.zig"),
     }));
 
-    b.installArtifact(exe);
+    // Custom install step to put binary in dist/ folder
+    const install_step = b.addInstallArtifact(exe, .{
+        .dest_dir = .{ .override = .{ .custom = "../dist" } },
+    });
+    b.getInstallStep().dependOn(&install_step.step);
 
     // Run command
     const run_cmd = b.addRunArtifact(exe);

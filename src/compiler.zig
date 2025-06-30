@@ -9,6 +9,7 @@ const CodeGen = @import("codegen.zig").CodeGen;
 const McpServer = @import("mcp.zig").McpServer;
 const ErrorReporter = @import("error_reporter.zig").ErrorReporter;
 const CirLowering = @import("cir.zig").CirLowering;
+const OptimizationManager = @import("optimization.zig").OptimizationManager;
 
 pub const CompilerError = error{
     FileNotFound,
@@ -25,6 +26,7 @@ pub const SeverCompiler = struct {
     type_checker: TypeChecker,
     code_gen: CodeGen,
     error_reporter: ErrorReporter,
+    optimization_manager: OptimizationManager,
     
     pub fn init(allocator: Allocator) SeverCompiler {
         return SeverCompiler{
@@ -33,6 +35,7 @@ pub const SeverCompiler = struct {
             .type_checker = TypeChecker.init(allocator),
             .code_gen = CodeGen.init(allocator),
             .error_reporter = ErrorReporter.init(allocator),
+            .optimization_manager = OptimizationManager.init(allocator),
         };
     }
     
@@ -40,6 +43,7 @@ pub const SeverCompiler = struct {
         self.type_checker.deinit();
         self.code_gen.deinit();
         self.error_reporter.deinit();
+        self.optimization_manager.deinit();
     }
     
     pub fn compile(self: *SeverCompiler, input_file: []const u8) !void {
@@ -105,7 +109,7 @@ pub const SeverCompiler = struct {
         var cir_lowering = CirLowering.init(self.allocator, &self.error_reporter, "main");
         defer cir_lowering.deinit();
         
-        const cir_module = cir_lowering.lower(&program) catch |err| {
+        var cir_module = cir_lowering.lower(&program) catch |err| {
             try self.error_reporter.reportErrorWithHint(
                 null,
                 "CIR lowering failed: {s}",
@@ -116,9 +120,21 @@ pub const SeverCompiler = struct {
             self.error_reporter.printAllErrors();
             return CompilerError.CirLoweringError;
         };
-        _ = cir_module; // Will be used by code generator in the future
         
-        print("Phase 5: Generating code...\n", .{});
+        print("Phase 5: Optimizing code...\n", .{});
+        self.optimization_manager.optimize(&cir_module) catch |err| {
+            try self.error_reporter.reportErrorWithHint(
+                null,
+                "Optimization failed: {s}",
+                .{@errorName(err)},
+                "Check optimization passes for errors",
+                .{}
+            );
+            self.error_reporter.printAllErrors();
+            return CompilerError.CodeGenError;
+        };
+        
+        print("Phase 6: Generating code...\n", .{});
         const output_file = try self.getOutputFilename(input_file);
         defer self.allocator.free(output_file);
         
@@ -181,19 +197,12 @@ pub const SeverCompiler = struct {
         const output_file = try self.getOutputFilename(input_file);
         defer self.allocator.free(output_file);
         
-        // For testing, we need just the basename in the current directory
-        const basename = std.fs.path.basename(output_file);
-        
-        // Create the executable path for Unix systems
-        const exe_path = try std.fmt.allocPrint(self.allocator, "./{s}", .{basename});
-        defer self.allocator.free(exe_path);
-        
-        // Check if the file exists before trying to execute it
-        const file_stat = std.fs.cwd().statFile(basename) catch |err| {
+        // Check if the file exists before trying to execute it (output_file already includes dist/ path)
+        const file_stat = std.fs.cwd().statFile(output_file) catch |err| {
             try self.error_reporter.reportErrorWithHint(
                 null,
                 "Compiled executable '{s}' not found: {s}",
-                .{ basename, @errorName(err) },
+                .{ output_file, @errorName(err) },
                 "Make sure the compilation succeeded and the file was created",
                 .{}
             );
@@ -206,7 +215,7 @@ pub const SeverCompiler = struct {
         print("Phase 2: Executing test cases...\n", .{});
         const result = std.process.Child.run(.{
             .allocator = self.allocator,
-            .argv = &[_][]const u8{exe_path},
+            .argv = &[_][]const u8{output_file},
         }) catch |err| {
             try self.error_reporter.reportErrorWithHint(
                 null,
@@ -287,6 +296,12 @@ pub const SeverCompiler = struct {
     }
     
     fn getOutputFilename(self: *SeverCompiler, input_file: []const u8) ![]u8 {
+        // Ensure dist/ directory exists
+        std.fs.cwd().makeDir("dist") catch |err| switch (err) {
+            error.PathAlreadyExists => {}, // Directory exists, that's fine
+            else => return err,
+        };
+        
         // Convert input.sirs.json to input or input.exe
         var base_name: []const u8 = input_file;
         
@@ -294,12 +309,15 @@ pub const SeverCompiler = struct {
             base_name = input_file[0..input_file.len - 10]; // Remove .sirs.json
         }
         
-        // Add platform-specific extension if needed
+        // Extract just the basename (remove any path components)
+        const filename = std.fs.path.basename(base_name);
+        
+        // Add platform-specific extension if needed and put in dist/
         if (@import("builtin").os.tag == .windows) {
-            return try std.fmt.allocPrint(self.allocator, "{s}.exe", .{base_name});
+            return try std.fmt.allocPrint(self.allocator, "dist/{s}.exe", .{filename});
         }
         
-        return try self.allocator.dupe(u8, base_name);
+        return try std.fmt.allocPrint(self.allocator, "dist/{s}", .{filename});
     }
     
     pub fn generate_docs(self: *SeverCompiler, input_file: []const u8) !void {
@@ -475,10 +493,154 @@ pub const SeverCompiler = struct {
     }
     
     fn getDocOutputFilename(self: *SeverCompiler, input_file: []const u8) ![]u8 {
+        // Get the directory of the input file
+        const dirname = std.fs.path.dirname(input_file) orelse ".";
+        
+        // Get the basename and remove extension
         const basename = std.fs.path.basename(input_file);
         const extension_start = std.mem.lastIndexOf(u8, basename, ".") orelse basename.len;
         const base_name = basename[0..extension_start];
-        return try std.fmt.allocPrint(self.allocator, "{s}.md", .{base_name});
+        
+        // Create the .md file in the same directory as the input file
+        return try std.fmt.allocPrint(self.allocator, "{s}/{s}.md", .{ dirname, base_name });
+    }
+
+    pub fn repl(self: *SeverCompiler) !void {
+        const stdin = std.io.getStdIn().reader();
+        const stdout = std.io.getStdOut().writer();
+        var buffer: [4096]u8 = undefined;
+        var repl_counter: u32 = 0;
+        
+        try stdout.writeAll("Sever REPL - Interactive Mode\n");
+        try stdout.writeAll("Type SIRS JSON expressions or 'help' for assistance\n");
+        try stdout.writeAll("Use 'exit' to quit\n\n");
+        
+        while (true) {
+            // Print prompt
+            try stdout.writeAll("sever> ");
+            
+            // Read input
+            if (try stdin.readUntilDelimiterOrEof(buffer[0..], '\n')) |input| {
+                const trimmed_input = std.mem.trim(u8, input, " \t\r\n");
+                
+                // Check for exit commands
+                if (std.mem.eql(u8, trimmed_input, "exit") or 
+                   std.mem.eql(u8, trimmed_input, "quit")) {
+                    try stdout.writeAll("Goodbye!\n");
+                    break;
+                }
+                
+                // Skip empty lines
+                if (trimmed_input.len == 0) {
+                    continue;
+                }
+                
+                // Check for help command
+                if (std.mem.eql(u8, trimmed_input, "help")) {
+                    try self.printReplHelp();
+                    continue;
+                }
+                
+                // Try to evaluate the input as a SIRS expression
+                try self.evalReplInput(trimmed_input, repl_counter);
+                repl_counter += 1;
+            } else {
+                // EOF reached (Ctrl+D)
+                try stdout.writeAll("\nGoodbye!\n");
+                break;
+            }
+        }
+    }
+    
+    fn printReplHelp(self: *SeverCompiler) !void {
+        _ = self;
+        const stdout = std.io.getStdOut().writer();
+        try stdout.writeAll("\nSever REPL Help:\n");
+        try stdout.writeAll("- Type SIRS JSON expressions to evaluate them\n");
+        try stdout.writeAll("- Examples:\n");
+        try stdout.writeAll("  42\n");
+        try stdout.writeAll("  {\"literal\": 100}\n");
+        try stdout.writeAll("  {\"op\": {\"kind\": \"add\", \"args\": [{\"literal\": 10}, {\"literal\": 20}]}}\n");
+        try stdout.writeAll("  {\"call\": {\"function\": \"std_print\", \"args\": [{\"literal\": \"Hello!\"}]}}\n");
+        try stdout.writeAll("- Commands:\n");
+        try stdout.writeAll("  help - Show this help\n");
+        try stdout.writeAll("  exit, quit - Exit REPL\n");
+        try stdout.writeAll("\n");
+    }
+    
+    fn evalReplInput(self: *SeverCompiler, input: []const u8, counter: u32) !void {
+        // Clear any previous errors
+        self.error_reporter.clear();
+        
+        // For simple literals, wrap them appropriately
+        var expression_json: []u8 = undefined;
+        var should_free_expression = false;
+        
+        if (std.mem.startsWith(u8, input, "{")) {
+            // Already JSON object
+            expression_json = @constCast(input);
+        } else {
+            // Simple literal, wrap as {"literal": value}
+            expression_json = try std.fmt.allocPrint(self.allocator, "{{\"literal\": {s}}}", .{input});
+            should_free_expression = true;
+        }
+        defer if (should_free_expression) self.allocator.free(expression_json);
+        
+        // Create a temporary SIRS program with the expression
+        const repl_program_template =
+            \\{{"program":{{"entry":"main","functions":{{"main":{{"args":[],"return":"i32","body":[{{"expression":{s}}},{{"return":{{"literal":0}}}}]}}}}}}}}
+        ;
+        
+        const repl_program_json = try std.fmt.allocPrint(
+            self.allocator, 
+            repl_program_template, 
+            .{expression_json}
+        );
+        defer self.allocator.free(repl_program_json);
+        
+        // Parse and execute the temporary program
+        var program = self.parser.parse(repl_program_json) catch |err| {
+            print("Parse error: {s}\n", .{@errorName(err)});
+            return;
+        };
+        defer program.deinit();
+        
+        // Type check
+        self.type_checker.check(&program) catch |err| {
+            print("Type error: {s}\n", .{@errorName(err)});
+            return;
+        };
+        
+        // Generate and compile
+        const temp_filename = try std.fmt.allocPrint(self.allocator, "dist/repl_temp_{d}", .{counter});
+        defer self.allocator.free(temp_filename);
+        
+        self.code_gen.generate(&program, temp_filename) catch |err| {
+            print("Codegen error: {s}\n", .{@errorName(err)});
+            return;
+        };
+        
+        // Execute the compiled program and show output
+        const result = std.process.Child.run(.{
+            .allocator = self.allocator,
+            .argv = &[_][]const u8{temp_filename},
+        }) catch |err| {
+            print("Execution error: {s}\n", .{@errorName(err)});
+            return;
+        };
+        defer self.allocator.free(result.stdout);
+        defer self.allocator.free(result.stderr);
+        
+        // Print any output
+        if (result.stdout.len > 0) {
+            print("{s}", .{result.stdout});
+        }
+        if (result.stderr.len > 0) {
+            print("stderr: {s}", .{result.stderr});
+        }
+        
+        // Clean up temporary executable
+        std.fs.cwd().deleteFile(temp_filename) catch {};
     }
     
     fn typeToString(self: *SeverCompiler, type_info: SirsParser.Type) []const u8 {
@@ -517,11 +679,11 @@ pub const SeverCompiler = struct {
         // - Empty output means the test passed silently
         // - In the future, we could implement a more sophisticated test format
         
-        print("Program output ({} bytes):\n", .{output.len});
+        print("Program output {d} bytes:\n", .{output.len});
         if (output.len > 0) {
             print("{s}\n", .{output});
         } else {
-            print("(no output)\n", .{});
+            print("no output\n", .{});
         }
         
         // Check for common test patterns or error indicators
