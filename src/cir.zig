@@ -36,6 +36,10 @@ pub const CirType = union(enum) {
         return_type: *CirType,
     },
     struct_type: StringHashMap(*CirType),
+    result: struct {
+        ok_type: *CirType,
+        err_type: *CirType,
+    },
 };
 
 /// CIR Value representation
@@ -294,17 +298,26 @@ pub const CirLowering = struct {
             try self.variable_map.put(param.name, param_value);
         }
         
+        // Pre-allocate space for basic blocks to avoid reallocation
+        // This ensures our pointers remain valid
+        try cir_func.basic_blocks.ensureTotalCapacity(10);
+        
         // Create entry basic block
         const entry_label = try std.fmt.allocPrint(self.allocator, "{s}_entry", .{name});
-        var entry_bb = CirBasicBlock.init(self.allocator, entry_label);
-        self.current_bb = &entry_bb;
+        const entry_bb = CirBasicBlock.init(self.allocator, entry_label);
+        
+        // Add the basic block to the function
+        try cir_func.basic_blocks.append(entry_bb);
+        
+        // Now get a stable pointer to the basic block
+        // Since we pre-allocated capacity, this pointer should remain valid
+        self.current_bb = &cir_func.basic_blocks.items[cir_func.basic_blocks.items.len - 1];
         
         // Lower function body statements
         for (sirs_func.body.items) |*stmt| {
             try self.lowerStatement(stmt);
         }
         
-        try cir_func.basic_blocks.append(entry_bb);
         self.current_function = null;
         self.current_bb = null;
     }
@@ -335,6 +348,11 @@ pub const CirLowering = struct {
             .optional => |opt| {
                 // For now, treat optional as a simple pointer (null = 0)
                 return CirType{ .ptr = try self.createType(try self.lowerType(opt.*)) };
+            },
+            .result => |res| {
+                const ok_type = try self.createType(try self.lowerType(res.ok_type.*));
+                const err_type = try self.createType(try self.lowerType(res.err_type.*));
+                return CirType{ .result = .{ .ok_type = ok_type, .err_type = err_type } };
             },
             else => {
                 try self.error_reporter.reportError(null, "Unsupported type in CIR lowering", .{});
@@ -405,6 +423,38 @@ pub const CirLowering = struct {
                 
                 if (self.current_bb) |bb| {
                     try bb.instructions.append(throw_inst);
+                }
+            },
+            .@"while" => |*while_stmt| {
+                return try self.lowerWhileStatement(while_stmt);
+            },
+            .@"for" => |*for_stmt| {
+                return try self.lowerForStatement(for_stmt);
+            },
+            .@"break" => {
+                // Create a simplified break instruction
+                var break_inst = CirInstruction.init(self.allocator, self.next_inst_id, .branch);
+                self.next_inst_id += 1;
+                
+                // For now, just add a comment that this is a break
+                // TODO: Implement proper control flow with loop exit labels
+                try break_inst.operands.append(CirValue{ .string_const = "break_placeholder" });
+                
+                if (self.current_bb) |bb| {
+                    try bb.instructions.append(break_inst);
+                }
+            },
+            .@"continue" => {
+                // Create a simplified continue instruction  
+                var continue_inst = CirInstruction.init(self.allocator, self.next_inst_id, .branch);
+                self.next_inst_id += 1;
+                
+                // For now, just add a comment that this is a continue
+                // TODO: Implement proper control flow with loop header labels
+                try continue_inst.operands.append(CirValue{ .string_const = "continue_placeholder" });
+                
+                if (self.current_bb) |bb| {
+                    try bb.instructions.append(continue_inst);
                 }
             },
             .expression => |*expr| {
@@ -883,6 +933,51 @@ pub const CirLowering = struct {
         
         // For simplicity, skip else branch in CIR for now
         _ = if_stmt.@"else";
+    }
+    
+    fn lowerWhileStatement(self: *CirLowering, while_stmt: anytype) CirError!void {
+        // Simplified while loop implementation
+        // Execute the condition and body once (no actual looping yet)
+        // This provides basic support while avoiding complex control flow issues
+        
+        // Lower the condition
+        _ = try self.lowerExpression(&while_stmt.condition);
+        
+        // Lower body statements
+        for (while_stmt.body.items) |*stmt| {
+            try self.lowerStatement(stmt);
+        }
+        
+        // TODO: Implement proper control flow with branching in a future version
+        // Current implementation provides basic while loop parsing support
+    }
+    
+    fn lowerForStatement(self: *CirLowering, for_stmt: anytype) CirError!void {
+        // Simplified for loop implementation
+        // For now, just execute the body once with the iterable value
+        // In a full implementation, this would create proper iteration logic
+        
+        // Lower the iterable expression
+        const iterable_value = try self.lowerExpression(&for_stmt.iterable);
+        
+        // Create a variable binding for the loop variable
+        // For simplicity, bind it to the iterable value (proper iteration would extract elements)
+        const prev_value = self.variable_map.get(for_stmt.variable);
+        try self.variable_map.put(for_stmt.variable, iterable_value);
+        
+        // Lower body statements
+        for (for_stmt.body.items) |*stmt| {
+            try self.lowerStatement(stmt);
+        }
+        
+        // Restore previous variable binding
+        if (prev_value) |prev| {
+            try self.variable_map.put(for_stmt.variable, prev);
+        } else {
+            _ = self.variable_map.remove(for_stmt.variable);
+        }
+        
+        // TODO: Implement proper iteration control flow in a future version
     }
     
     fn lowerPattern(self: *CirLowering, pattern: *SirsParser.Pattern, match_value: CirValue) CirError!CirValue {

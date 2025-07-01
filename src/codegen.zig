@@ -990,6 +990,198 @@ pub const CodeGen = struct {
         try self.writeLine("}");
         try self.writeLine("");
         
+        // Mathematical Functions
+        try self.writeLine("// Mathematical Functions");
+        try self.writeLine("fn math_abs(x: f64) f64 {");
+        try self.writeLine("    return @abs(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_sqrt(x: f64) f64 {");
+        try self.writeLine("    return math.sqrt(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_pow(base: f64, exp: f64) f64 {");
+        try self.writeLine("    return math.pow(f64, base, exp);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_exp(x: f64) f64 {");
+        try self.writeLine("    return math.exp(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_log(x: f64) f64 {");
+        try self.writeLine("    return math.log(f64, math.e, x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_log10(x: f64) f64 {");
+        try self.writeLine("    return math.log10(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_log2(x: f64) f64 {");
+        try self.writeLine("    return math.log2(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_sin(x: f64) f64 {");
+        try self.writeLine("    return math.sin(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_cos(x: f64) f64 {");
+        try self.writeLine("    return math.cos(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_tan(x: f64) f64 {");
+        try self.writeLine("    return math.tan(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_asin(x: f64) f64 {");
+        try self.writeLine("    return math.asin(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_acos(x: f64) f64 {");
+        try self.writeLine("    return math.acos(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_atan(x: f64) f64 {");
+        try self.writeLine("    return math.atan(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_atan2(y: f64, x: f64) f64 {");
+        try self.writeLine("    return math.atan2(f64, y, x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_sinh(x: f64) f64 {");
+        try self.writeLine("    return math.sinh(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_cosh(x: f64) f64 {");
+        try self.writeLine("    return math.cosh(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_tanh(x: f64) f64 {");
+        try self.writeLine("    return math.tanh(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_floor(x: f64) f64 {");
+        try self.writeLine("    return math.floor(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_ceil(x: f64) f64 {");
+        try self.writeLine("    return math.ceil(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_round(x: f64) f64 {");
+        try self.writeLine("    return math.round(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_trunc(x: f64) f64 {");
+        try self.writeLine("    return math.trunc(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_fmod(x: f64, y: f64) f64 {");
+        try self.writeLine("    return math.fmod(f64, x, y);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_remainder(x: f64, y: f64) f64 {");
+        try self.writeLine("    return math.mod(f64, x, y);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_min(x: f64, y: f64) f64 {");
+        try self.writeLine("    return math.min(x, y);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_max(x: f64, y: f64) f64 {");
+        try self.writeLine("    return math.max(x, y);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_clamp(value: f64, min_val: f64, max_val: f64) f64 {");
+        try self.writeLine("    return math.clamp(value, min_val, max_val);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_lerp(a: f64, b: f64, t: f64) f64 {");
+        try self.writeLine("    return a + t * (b - a);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_degrees(radians: f64) f64 {");
+        try self.writeLine("    return radians * 180.0 / math.pi;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_radians(degrees: f64) f64 {");
+        try self.writeLine("    return degrees * math.pi / 180.0;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_pi() f64 {");
+        try self.writeLine("    return math.pi;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_e() f64 {");
+        try self.writeLine("    return math.e;");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_inf() f64 {");
+        try self.writeLine("    return math.inf(f64);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_nan() f64 {");
+        try self.writeLine("    return math.nan(f64);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_is_finite(x: f64) bool {");
+        try self.writeLine("    return math.isFinite(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_is_infinite(x: f64) bool {");
+        try self.writeLine("    return math.isInf(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_is_nan(x: f64) bool {");
+        try self.writeLine("    return math.isNan(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_sign(x: f64) f64 {");
+        try self.writeLine("    return math.sign(x);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
+        try self.writeLine("fn math_copysign(magnitude: f64, sign: f64) f64 {");
+        try self.writeLine("    return math.copysign(f64, magnitude, sign);");
+        try self.writeLine("}");
+        try self.writeLine("");
+        
         // Generate all functions
         var func_iter = program.functions.iterator();
         while (func_iter.next()) |entry| {
@@ -1177,6 +1369,36 @@ pub const CodeGen = struct {
                 try self.writeLine("}");
             },
             
+            .@"for" => |*for_stmt| {
+                // Generate simplified for loop - for now just iterate once
+                // TODO: Implement proper iteration based on iterable type
+                try self.writeIndent();
+                try self.write("// For loop iteration (simplified)");
+                try self.writeLine("");
+                
+                try self.writeIndent();
+                try self.write("{{");
+                try self.writeLine("");
+                
+                self.indent_level += 1;
+                
+                // Bind loop variable to iterable value
+                try self.writeIndent();
+                try self.write("const ");
+                try self.write(for_stmt.variable);
+                try self.write(" = ");
+                try self.generateExpression(&for_stmt.iterable);
+                try self.writeLine(";");
+                
+                // Generate body
+                for (for_stmt.body.items) |*body_stmt| {
+                    try self.generateStatement(body_stmt);
+                }
+                
+                self.indent_level -= 1;
+                try self.writeLine("}");
+            },
+            
             .@"return" => |*return_expr| {
                 try self.writeIndent();
                 // Check if we're in main function and need to print result instead of returning it
@@ -1261,9 +1483,6 @@ pub const CodeGen = struct {
                 try self.writeLine(";");
             },
             
-            else => {
-                return CodeGenError.UnsupportedStatement;
-            },
         }
     }
     
@@ -1890,6 +2109,13 @@ pub const CodeGen = struct {
                 // Future types in Zig - for simplicity, we'll use the wrapped type directly
                 // In a full implementation, this would be a proper async frame type
                 try self.generateType(future_type.*);
+            },
+            
+            .result => |result_def| {
+                // Generate Zig error union: Error!Type
+                try self.generateType(result_def.err_type.*);
+                try self.write("!");
+                try self.generateType(result_def.ok_type.*);
             },
             
             else => {

@@ -59,6 +59,10 @@ pub const Type = union(enum) {
         fields: std.StringHashMap(*Type), // named fields with types
     },
     optional: *Type,
+    result: struct {
+        ok_type: *Type,
+        err_type: *Type,
+    },
     function: struct {
         args: ArrayList(Type),
         @"return": *Type,
@@ -1177,6 +1181,18 @@ pub const Parser = struct {
             return Statement{ .@"throw" = expr };
         }
         
+        if (stmt_obj.object.get("for")) |for_obj| {
+            return try self.parseForStatement(for_obj);
+        }
+        
+        if (stmt_obj.object.get("break")) |_| {
+            return Statement{ .@"break" = {} };
+        }
+        
+        if (stmt_obj.object.get("continue")) |_| {
+            return Statement{ .@"continue" = {} };
+        }
+        
         return SirsError.InvalidStatement;
     }
     
@@ -1243,6 +1259,34 @@ pub const Parser = struct {
         return Statement{
             .@"while" = .{
                 .condition = condition,
+                .body = body,
+            },
+        };
+    }
+    
+    fn parseForStatement(self: *Parser, for_obj: json.Value) SirsError!Statement {
+        if (for_obj != .object) return SirsError.InvalidStatement;
+        
+        const variable_obj = for_obj.object.get("variable") orelse return SirsError.MissingField;
+        const iterable_obj = for_obj.object.get("iterable") orelse return SirsError.MissingField;
+        const body_obj = for_obj.object.get("body") orelse return SirsError.MissingField;
+        
+        if (variable_obj != .string) return SirsError.InvalidType;
+        if (body_obj != .array) return SirsError.InvalidStatement;
+        
+        const variable = self.allocator.dupe(u8, variable_obj.string) catch return SirsError.OutOfMemory;
+        const iterable = try self.parseExpression(iterable_obj);
+        
+        var body = ArrayList(Statement).init(self.allocator);
+        for (body_obj.array.items) |stmt_obj| {
+            const stmt = try self.parseStatement(stmt_obj);
+            body.append(stmt) catch return SirsError.OutOfMemory;
+        }
+        
+        return Statement{
+            .@"for" = .{
+                .variable = variable,
+                .iterable = iterable,
                 .body = body,
             },
         };
@@ -2098,6 +2142,30 @@ pub const Parser = struct {
                 .@"interface" = .{
                     .name = try self.allocator.dupe(u8, name.string),
                     .methods = methods,
+                },
+            };
+        }
+        
+        // Handle result type definitions
+        if (type_obj.object.get("result")) |result_obj| {
+            if (result_obj != .object) return SirsError.InvalidType;
+            
+            const ok_type_obj = result_obj.object.get("ok_type") orelse return SirsError.MissingField;
+            const err_type_obj = result_obj.object.get("err_type") orelse return SirsError.MissingField;
+            
+            const ok_type = try self.parseType(ok_type_obj);
+            const err_type = try self.parseType(err_type_obj);
+            
+            const ok_type_ptr = try self.allocator.create(Type);
+            ok_type_ptr.* = ok_type;
+            
+            const err_type_ptr = try self.allocator.create(Type);
+            err_type_ptr.* = err_type;
+            
+            return Type{
+                .result = .{
+                    .ok_type = ok_type_ptr,
+                    .err_type = err_type_ptr,
                 },
             };
         }

@@ -48,8 +48,8 @@ zig build
 
 ### Control Flow & Pattern Matching
 - **Pattern matching**: Exhaustive pattern checking with return analysis
-- **Exception handling**: try/catch/finally blocks with custom error types
-- **Control structures**: If/else, while/for loops, match expressions
+- **Exception handling**: try/catch/finally blocks with custom error types and Result<T,E> types
+- **Control structures**: If/else, while/for loops with break/continue validation, match expressions
 
 ### Probabilistic Programming
 Built-in support for statistical computing with native distributions, custom distribution definitions, and advanced sampling capabilities
@@ -59,7 +59,7 @@ Built-in support for statistical computing with native distributions, custom dis
 - **File I/O**: Complete file system operations (`file_read`, `file_write`, `dir_create`, etc.)
 - **JSON support**: Parsing, serialization, and data extraction
 - **String manipulation**: 11 string functions (`str_length`, `str_contains`, `str_trim`, etc.)
-- **Mathematical operations**: Built-in arithmetic and statistical functions
+- **Mathematical operations**: Comprehensive 39-function math library (`math_sqrt`, `math_sin`, `math_cos`, `math_pow`, `math_log`, etc.)
 
 ## 🏗️ Architecture
 
@@ -317,6 +317,63 @@ Built-in functions:
 - `str_to_lower(s: str) -> str` - Convert to lowercase
 - `str_trim(s: str) -> str` - Remove whitespace
 - `str_equals(a: str, b: str) -> bool` - Compare strings
+
+### Mathematical Functions
+Comprehensive mathematical library with 39 functions covering all major mathematical operations:
+
+**Basic Operations:**
+- `math_abs(x: f64) -> f64` - Absolute value
+- `math_sqrt(x: f64) -> f64` - Square root
+- `math_pow(base: f64, exp: f64) -> f64` - Power function
+- `math_exp(x: f64) -> f64` - Exponential function
+- `math_min(x: f64, y: f64) -> f64` - Minimum value
+- `math_max(x: f64, y: f64) -> f64` - Maximum value
+
+**Trigonometric Functions:**
+- `math_sin(x: f64) -> f64` - Sine
+- `math_cos(x: f64) -> f64` - Cosine
+- `math_tan(x: f64) -> f64` - Tangent
+- `math_asin(x: f64) -> f64` - Arcsine
+- `math_acos(x: f64) -> f64` - Arccosine
+- `math_atan(x: f64) -> f64` - Arctangent
+- `math_atan2(y: f64, x: f64) -> f64` - Two-argument arctangent
+
+**Hyperbolic Functions:**
+- `math_sinh(x: f64) -> f64` - Hyperbolic sine
+- `math_cosh(x: f64) -> f64` - Hyperbolic cosine
+- `math_tanh(x: f64) -> f64` - Hyperbolic tangent
+
+**Logarithmic Functions:**
+- `math_log(x: f64) -> f64` - Natural logarithm
+- `math_log10(x: f64) -> f64` - Base-10 logarithm
+- `math_log2(x: f64) -> f64` - Base-2 logarithm
+
+**Rounding Functions:**
+- `math_floor(x: f64) -> f64` - Floor function
+- `math_ceil(x: f64) -> f64` - Ceiling function
+- `math_round(x: f64) -> f64` - Round to nearest integer
+- `math_trunc(x: f64) -> f64` - Truncate towards zero
+
+**Advanced Operations:**
+- `math_fmod(x: f64, y: f64) -> f64` - Floating-point remainder
+- `math_remainder(x: f64, y: f64) -> f64` - IEEE remainder
+- `math_clamp(value: f64, min: f64, max: f64) -> f64` - Clamp value to range
+- `math_lerp(a: f64, b: f64, t: f64) -> f64` - Linear interpolation
+- `math_copysign(magnitude: f64, sign: f64) -> f64` - Copy sign
+- `math_sign(x: f64) -> f64` - Sign function
+
+**Constants and Utilities:**
+- `math_pi() -> f64` - π constant
+- `math_e() -> f64` - Euler's number
+- `math_inf() -> f64` - Positive infinity
+- `math_nan() -> f64` - Not-a-Number
+- `math_degrees(radians: f64) -> f64` - Convert radians to degrees
+- `math_radians(degrees: f64) -> f64` - Convert degrees to radians
+
+**Predicates:**
+- `math_is_finite(x: f64) -> bool` - Check if finite
+- `math_is_infinite(x: f64) -> bool` - Check if infinite
+- `math_is_nan(x: f64) -> bool` - Check if NaN
 
 ## 📁 Project Structure
 

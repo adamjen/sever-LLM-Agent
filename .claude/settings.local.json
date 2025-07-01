@@ -61,7 +61,15 @@
       "Bash(./dist/ffi_test)",
       "Bash(./dist/optimization_test)",
       "Bash(./dist/debug_test)",
-      "Bash(zig test:*)"
+      "Bash(zig test:*)",
+      "Bash(gdb:*)",
+      "Bash(diff:*)",
+      "Bash(cp:*)",
+      "Bash(../dist/sev build while_test.sirs.json)",
+      "Bash(for i in {1..5})",
+      "Bash(do echo \"Run $i:\")",
+      "Bash(done)",
+      "Bash(zig ast-check:*)"
     ],
     "deny": []
   }

@@ -21,6 +21,7 @@ pub const TypeCheckError = error{
     InvalidSample,
     InvalidObservation,
     MissingReturn,
+    InvalidContext,
     OutOfMemory,
 };
 
@@ -32,6 +33,8 @@ pub const TypeChecker = struct {
     current_function: ?*Function,
     // Arena for type allocations
     type_ptrs: ArrayList(*Type),
+    // Loop nesting depth for break/continue validation
+    loop_depth: u32,
     
     pub fn init(allocator: Allocator) TypeChecker {
         return TypeChecker{
@@ -39,6 +42,7 @@ pub const TypeChecker = struct {
             .variables = StringHashMap(Type).init(allocator),
             .current_function = null,
             .type_ptrs = ArrayList(*Type).init(allocator),
+            .loop_depth = 0,
         };
     }
     
@@ -152,8 +156,45 @@ pub const TypeChecker = struct {
                     return TypeCheckError.TypeMismatch;
                 }
                 
+                // Enter loop context
+                self.loop_depth += 1;
                 for (while_stmt.body.items) |*body_stmt| {
                     try self.checkStatement(body_stmt, program);
+                }
+                self.loop_depth -= 1;
+            },
+            
+            .@"for" => |*for_stmt| {
+                const iterable_type = try self.checkExpression(&for_stmt.iterable, program);
+                
+                // Determine element type from iterable
+                const element_type = switch (iterable_type) {
+                    .array => |arr| arr.element.*,
+                    .slice => |slice| slice.element.*,
+                    else => {
+                        // For now, support iterating over basic types as single elements
+                        // This can be extended later for more complex iterables
+                        return TypeCheckError.TypeMismatch;
+                    },
+                };
+                
+                // Add loop variable to scope
+                const prev_value = self.variables.get(for_stmt.variable);
+                try self.variables.put(for_stmt.variable, element_type);
+                
+                // Enter loop context
+                self.loop_depth += 1;
+                // Check body statements
+                for (for_stmt.body.items) |*body_stmt| {
+                    try self.checkStatement(body_stmt, program);
+                }
+                self.loop_depth -= 1;
+                
+                // Restore previous variable binding (if any)
+                if (prev_value) |prev| {
+                    try self.variables.put(for_stmt.variable, prev);
+                } else {
+                    _ = self.variables.remove(for_stmt.variable);
                 }
             },
             
@@ -252,11 +293,10 @@ pub const TypeChecker = struct {
             },
             
             .@"break", .@"continue" => {
-                // These are valid in loop contexts - could add context checking
-            },
-            
-            else => {
-                // Handle other statement types
+                // Validate that break/continue are used within a loop
+                if (self.loop_depth == 0) {
+                    return TypeCheckError.InvalidContext;
+                }
             },
         }
     }
@@ -849,7 +889,46 @@ pub const TypeChecker = struct {
                std.mem.eql(u8, function_name, "ffi_read_i32") or
                std.mem.eql(u8, function_name, "ffi_write_i32") or
                std.mem.eql(u8, function_name, "ffi_read_str") or
-               std.mem.eql(u8, function_name, "ffi_write_str");
+               std.mem.eql(u8, function_name, "ffi_write_str") or
+               // Mathematical functions
+               std.mem.eql(u8, function_name, "math_abs") or
+               std.mem.eql(u8, function_name, "math_sqrt") or
+               std.mem.eql(u8, function_name, "math_pow") or
+               std.mem.eql(u8, function_name, "math_exp") or
+               std.mem.eql(u8, function_name, "math_log") or
+               std.mem.eql(u8, function_name, "math_log10") or
+               std.mem.eql(u8, function_name, "math_log2") or
+               std.mem.eql(u8, function_name, "math_sin") or
+               std.mem.eql(u8, function_name, "math_cos") or
+               std.mem.eql(u8, function_name, "math_tan") or
+               std.mem.eql(u8, function_name, "math_asin") or
+               std.mem.eql(u8, function_name, "math_acos") or
+               std.mem.eql(u8, function_name, "math_atan") or
+               std.mem.eql(u8, function_name, "math_atan2") or
+               std.mem.eql(u8, function_name, "math_sinh") or
+               std.mem.eql(u8, function_name, "math_cosh") or
+               std.mem.eql(u8, function_name, "math_tanh") or
+               std.mem.eql(u8, function_name, "math_floor") or
+               std.mem.eql(u8, function_name, "math_ceil") or
+               std.mem.eql(u8, function_name, "math_round") or
+               std.mem.eql(u8, function_name, "math_trunc") or
+               std.mem.eql(u8, function_name, "math_fmod") or
+               std.mem.eql(u8, function_name, "math_remainder") or
+               std.mem.eql(u8, function_name, "math_min") or
+               std.mem.eql(u8, function_name, "math_max") or
+               std.mem.eql(u8, function_name, "math_clamp") or
+               std.mem.eql(u8, function_name, "math_lerp") or
+               std.mem.eql(u8, function_name, "math_degrees") or
+               std.mem.eql(u8, function_name, "math_radians") or
+               std.mem.eql(u8, function_name, "math_pi") or
+               std.mem.eql(u8, function_name, "math_e") or
+               std.mem.eql(u8, function_name, "math_inf") or
+               std.mem.eql(u8, function_name, "math_nan") or
+               std.mem.eql(u8, function_name, "math_is_finite") or
+               std.mem.eql(u8, function_name, "math_is_infinite") or
+               std.mem.eql(u8, function_name, "math_is_nan") or
+               std.mem.eql(u8, function_name, "math_sign") or
+               std.mem.eql(u8, function_name, "math_copysign");
     }
     
     fn checkBuiltinFunction(self: *TypeChecker, call_expr: anytype, program: *Program) TypeCheckError!Type {
@@ -1469,6 +1548,129 @@ pub const TypeChecker = struct {
                 return TypeCheckError.ArgumentTypeMismatch;
             }
             return Type.void;
+        
+        // Mathematical functions
+        } else if (std.mem.eql(u8, function_name, "math_abs")) {
+            // math_abs(x: f64) f64
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (!self.isNumericType(arg_type)) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return arg_type; // Return same type as input
+        } else if (std.mem.eql(u8, function_name, "math_sqrt")) {
+            // math_sqrt(x: f64) f64
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (!self.isNumericType(arg_type)) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.f64;
+        } else if (std.mem.eql(u8, function_name, "math_pow")) {
+            // math_pow(base: f64, exponent: f64) f64
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const base_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const exp_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (!self.isNumericType(base_type) or !self.isNumericType(exp_type)) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.f64;
+        } else if (std.mem.eql(u8, function_name, "math_exp") or 
+                   std.mem.eql(u8, function_name, "math_log") or
+                   std.mem.eql(u8, function_name, "math_log10") or
+                   std.mem.eql(u8, function_name, "math_log2") or
+                   std.mem.eql(u8, function_name, "math_sin") or
+                   std.mem.eql(u8, function_name, "math_cos") or
+                   std.mem.eql(u8, function_name, "math_tan") or
+                   std.mem.eql(u8, function_name, "math_asin") or
+                   std.mem.eql(u8, function_name, "math_acos") or
+                   std.mem.eql(u8, function_name, "math_atan") or
+                   std.mem.eql(u8, function_name, "math_sinh") or
+                   std.mem.eql(u8, function_name, "math_cosh") or
+                   std.mem.eql(u8, function_name, "math_tanh") or
+                   std.mem.eql(u8, function_name, "math_floor") or
+                   std.mem.eql(u8, function_name, "math_ceil") or
+                   std.mem.eql(u8, function_name, "math_round") or
+                   std.mem.eql(u8, function_name, "math_trunc") or
+                   std.mem.eql(u8, function_name, "math_degrees") or
+                   std.mem.eql(u8, function_name, "math_radians") or
+                   std.mem.eql(u8, function_name, "math_sign")) {
+            // Single argument math functions: f(x: f64) f64
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (!self.isNumericType(arg_type)) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.f64;
+        } else if (std.mem.eql(u8, function_name, "math_atan2") or
+                   std.mem.eql(u8, function_name, "math_fmod") or
+                   std.mem.eql(u8, function_name, "math_remainder") or
+                   std.mem.eql(u8, function_name, "math_min") or
+                   std.mem.eql(u8, function_name, "math_max") or
+                   std.mem.eql(u8, function_name, "math_copysign")) {
+            // Two argument math functions: f(x: f64, y: f64) f64
+            if (call_expr.args.items.len != 2) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg1_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const arg2_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            if (!self.isNumericType(arg1_type) or !self.isNumericType(arg2_type)) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.f64;
+        } else if (std.mem.eql(u8, function_name, "math_clamp")) {
+            // math_clamp(value: f64, min: f64, max: f64) f64
+            if (call_expr.args.items.len != 3) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const value_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const min_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            const max_type = try self.checkExpression(@constCast(&call_expr.args.items[2]), program);
+            if (!self.isNumericType(value_type) or !self.isNumericType(min_type) or !self.isNumericType(max_type)) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.f64;
+        } else if (std.mem.eql(u8, function_name, "math_lerp")) {
+            // math_lerp(a: f64, b: f64, t: f64) f64 - linear interpolation
+            if (call_expr.args.items.len != 3) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const a_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            const b_type = try self.checkExpression(@constCast(&call_expr.args.items[1]), program);
+            const t_type = try self.checkExpression(@constCast(&call_expr.args.items[2]), program);
+            if (!self.isNumericType(a_type) or !self.isNumericType(b_type) or !self.isNumericType(t_type)) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.f64;
+        } else if (std.mem.eql(u8, function_name, "math_pi") or
+                   std.mem.eql(u8, function_name, "math_e") or
+                   std.mem.eql(u8, function_name, "math_inf") or
+                   std.mem.eql(u8, function_name, "math_nan")) {
+            // Mathematical constants: f() f64
+            if (call_expr.args.items.len != 0) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            return Type.f64;
+        } else if (std.mem.eql(u8, function_name, "math_is_finite") or
+                   std.mem.eql(u8, function_name, "math_is_infinite") or
+                   std.mem.eql(u8, function_name, "math_is_nan")) {
+            // Mathematical predicates: f(x: f64) bool
+            if (call_expr.args.items.len != 1) {
+                return TypeCheckError.ArgumentCountMismatch;
+            }
+            const arg_type = try self.checkExpression(@constCast(&call_expr.args.items[0]), program);
+            if (!self.isNumericType(arg_type)) {
+                return TypeCheckError.ArgumentTypeMismatch;
+            }
+            return Type.bool;
         }
         
         return TypeCheckError.UndefinedFunction;
@@ -1526,6 +1728,11 @@ pub const TypeChecker = struct {
             .@"while" => |*while_stmt| {
                 // While loops don't guarantee execution, so can't guarantee return
                 _ = while_stmt;
+                return false;
+            },
+            .@"for" => |*for_stmt| {
+                // For loops don't guarantee execution (iterable could be empty), so can't guarantee return
+                _ = for_stmt;
                 return false;
             },
             else => false,
