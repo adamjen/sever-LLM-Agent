@@ -81,7 +81,22 @@
       "Bash(/Users/avitaltamir/projects/sever1/dist/sev convert examples/simple_math.sirs.json test2.sev)",
       "Bash(for i in {1..3})",
       "Bash(do echo \"=== Run $i ===\")",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "Bash(./dist/minimal_anomaly.sirs.l)",
+      "Bash(./dist/debug_types.sirs.l)",
+      "Bash(./dist/debug_distributions.sirs.l)",
+      "Bash(./dist/debug_nested_ops.sirs.l)",
+      "Bash(./dist/debug_param_var.sirs.l)",
+      "Bash(./dist/two_samples.sirs.l)",
+      "Bash(./dist/test_bernoulli.sirs.l)",
+      "Bash(./dist/practical_anomaly.sirs.l)",
+      "Bash(echo)",
+      "Bash(./dist/timeseries_anomaly.sirs.l)",
+      "Bash(./dist/observability_anomaly_detection.sirs.l)",
+      "Bash(./dist/production_anomaly_detection.sirs.l)",
+      "Bash(./dist/adaptive_anomaly_mcmc.sirs.l)",
+      "Bash(./dist/clean_alerting_system.sirs.l)",
+      "Bash(./dist/seasonal_anomaly_detection.sirs.l)"
     ],
     "deny": []
   }

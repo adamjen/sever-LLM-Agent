@@ -881,9 +881,8 @@ pub const TypeChecker = struct {
     
     fn getDistributionSampleType(_: *TypeChecker, kind: SirsParser.DistributionKind) Type {
         return switch (kind) {
-            .uniform, .normal, .exponential, .gamma, .beta, .dirichlet => Type.f64,
+            .uniform, .normal, .exponential, .gamma, .beta, .dirichlet, .bernoulli => Type.f64,
             .categorical => Type.i32,
-            .bernoulli => Type.bool,
         };
     }
     
