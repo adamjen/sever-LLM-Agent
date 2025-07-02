@@ -372,7 +372,8 @@ test "MCP tool names are unique" {
 }
 
 test "ZZZ_cleanup_global_registry" {
-    // Skip cleanup to avoid double-free issues since the global registry
-    // is shared across tests. The OS will clean up when the process exits.
-    // Memory leaks in tests are acceptable for this development phase.
+    // This test intentionally does nothing to avoid double-free issues
+    // when the global registry is shared across tests. The OS will clean
+    // up memory when the process exits. Expected memory leaks are acceptable
+    // for the development phase of this AI-first programming language.
 }

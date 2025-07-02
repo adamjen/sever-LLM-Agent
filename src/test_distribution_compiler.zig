@@ -191,8 +191,8 @@ test "Distribution validation" {
     try testing.expect(try compiler.validateDistribution("StudentT"));
     try testing.expect(try compiler.validateDistribution("GaussianMixture"));
     
-    // Test validation of non-existent distribution
-    try testing.expect(!(try compiler.validateDistribution("NonExistentDistribution")));
+    // Test validation of non-existent distribution (silent mode to avoid stderr)
+    try testing.expect(!(try compiler.validateDistributionSilent("NonExistentDistribution", true)));
 }
 
 test "Type to string conversion" {

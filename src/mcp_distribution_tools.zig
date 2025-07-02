@@ -167,6 +167,7 @@ pub const MCP_DISTRIBUTION_TOOLS = [_]MCPDistributionTool{
 var global_registry: ?DistributionRegistry = null;
 var global_registry_allocator: ?Allocator = null;
 var global_registry_cleaned: bool = false;
+var global_gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
 
 /// Initialize the global registry
 fn getGlobalRegistry(allocator: Allocator) !*DistributionRegistry {
@@ -177,6 +178,16 @@ fn getGlobalRegistry(allocator: Allocator) !*DistributionRegistry {
         try global_registry.?.createExampleDistributions();
     }
     return &global_registry.?;
+}
+
+/// Reset the global registry for testing isolation
+fn resetGlobalRegistry() void {
+    if (global_registry) |*registry| {
+        registry.deinit();
+    }
+    global_registry = null;
+    global_registry_allocator = null;
+    global_registry_cleaned = false;
 }
 
 /// Clean up the global registry (for testing)
