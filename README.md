@@ -1,4 +1,4 @@
-# Sever: Production-Ready Probabilistic Programming Language
+# Sever: An AI-First, Probabilistic Programming Language
 
 **The First AI-Native Language for Real-World Probabilistic Computing**
 
@@ -313,7 +313,5 @@ We welcome contributions in multiple areas:
 Join us in building the future of probabilistic programming! 🚀
 
 ---
-
-**Sever**: Where AI-first design meets production-ready probabilistic programming.
 
 **100% Vibe-Coded by AI, for AI**
