@@ -28,11 +28,11 @@ fn createTestProgram(allocator: Allocator) !Program {
         .type = Type.f64,
     });
     try gamma_log_prob.args.append(SirsParser.Parameter{
-        .name = "beta",
+        .name = try allocator.dupe(u8, "beta"),
         .type = Type.f64,
     });
     try gamma_log_prob.args.append(SirsParser.Parameter{
-        .name = "x",
+        .name = try allocator.dupe(u8, "x"),
         .type = Type.f64,
     });
     
@@ -52,7 +52,7 @@ fn createTestProgram(allocator: Allocator) !Program {
         .type = Type.f64,
     });
     try gamma_sample.args.append(SirsParser.Parameter{
-        .name = "beta",
+        .name = try allocator.dupe(u8, "beta"),
         .type = Type.f64,
     });
     
@@ -380,7 +380,8 @@ test "Compiler memory management" {
         const registry = compiler.getRegistry();
         try registry.createExampleDistributions();
         
-        _ = try compiler.generateDistributionCode("BetaBinomial");
+        const generated_code = try compiler.generateDistributionCode("BetaBinomial");
+        defer allocator.free(generated_code);
         
         compiler.deinit();
     }

@@ -1,0 +1,221 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "latency_anomaly_model",
+              "value": {
+                "mixture": {
+                  "name": "latency_distribution",
+                  "components": [
+                    {
+                      "weight": {"literal": 0.85},
+                      "distribution": "normal",
+                      "parameters": [
+                        {"literal": 150.0},
+                        {"literal": 25.0}
+                      ],
+                      "label": "normal_latency"
+                    },
+                    {
+                      "weight": {"literal": 0.10},
+                      "distribution": "normal",
+                      "parameters": [
+                        {"literal": 400.0},
+                        {"literal": 80.0}
+                      ],
+                      "label": "elevated_latency"
+                    },
+                    {
+                      "weight": {"literal": 0.05},
+                      "distribution": "normal",
+                      "parameters": [
+                        {"literal": 1000.0},
+                        {"literal": 200.0}
+                      ],
+                      "label": "anomalous_latency"
+                    }
+                  ],
+                  "weight_prior": {
+                    "sample": {
+                      "distribution": "dirichlet",
+                      "params": [
+                        {"literal": 8.5},
+                        {"literal": 1.0},
+                        {"literal": 0.5}
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "service_hierarchy_model",
+              "value": {
+                "hierarchical": {
+                  "name": "service_performance",
+                  "levels": [
+                    {
+                      "level_name": "service",
+                      "group_variable": "service_name",
+                      "parameters": {
+                        "baseline_latency": {
+                          "distribution": "lognormal",
+                          "hyperparameters": ["mu_baseline", "sigma_baseline"]
+                        },
+                        "error_rate": {
+                          "distribution": "beta",
+                          "hyperparameters": ["alpha_error", "beta_error"],
+                          "link_function": "logit"
+                        }
+                      },
+                      "hyperpriors": {
+                        "mu_baseline": {
+                          "sample": {
+                            "distribution": "normal",
+                            "params": [
+                              {"call": {"function": "math_log", "args": [{"literal": 100.0}]}},
+                              {"literal": 0.5}
+                            ]
+                          }
+                        },
+                        "sigma_baseline": {
+                          "sample": {
+                            "distribution": "gamma",
+                            "params": [{"literal": 2.0}, {"literal": 0.1}]
+                          }
+                        },
+                        "alpha_error": {
+                          "sample": {
+                            "distribution": "gamma",
+                            "params": [{"literal": 1.0}, {"literal": 1.0}]
+                          }
+                        },
+                        "beta_error": {
+                          "sample": {
+                            "distribution": "gamma",
+                            "params": [{"literal": 99.0}, {"literal": 1.0}]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "level_name": "endpoint",
+                      "group_variable": "endpoint_path",
+                      "parameters": {
+                        "endpoint_effect": {
+                          "distribution": "normal",
+                          "hyperparameters": ["mu_endpoint", "sigma_endpoint"]
+                        }
+                      },
+                      "hyperpriors": {
+                        "mu_endpoint": {
+                          "sample": {
+                            "distribution": "normal",
+                            "params": [{"literal": 0.0}, {"literal": 0.2}]
+                          }
+                        },
+                        "sigma_endpoint": {
+                          "sample": {
+                            "distribution": "gamma",
+                            "params": [{"literal": 2.0}, {"literal": 0.1}]
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "observation_model": {
+                    "likelihood": "lognormal",
+                    "parameters": ["baseline_latency", "endpoint_effect"],
+                    "link_functions": {
+                      "baseline_latency": "log",
+                      "endpoint_effect": "identity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "current_latency",
+              "value": {"literal": 750.0}
+            }
+          },
+          {
+            "let": {
+              "name": "anomaly_probability",
+              "value": {
+                "call": {
+                  "function": "math_exp",
+                  "args": [
+                    {
+                      "op": {
+                        "kind": "div",
+                        "args": [
+                          {
+                            "op": {
+                              "kind": "sub",
+                              "args": [
+                                {"var": "current_latency"},
+                                {"literal": 150.0}
+                              ]
+                            }
+                          },
+                          {"literal": 25.0}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "condition": {
+                "op": {
+                  "kind": "gt",
+                  "args": [
+                    {"var": "anomaly_probability"},
+                    {"literal": 2.0}
+                  ]
+                }
+              },
+              "then": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "ALERT: Anomalous latency detected!"}]
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "expression": {
+                    "call": {
+                      "function": "std_print",
+                      "args": [{"literal": "Latency within normal range"}]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

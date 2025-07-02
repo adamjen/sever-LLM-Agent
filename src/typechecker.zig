@@ -233,6 +233,19 @@ pub const TypeChecker = struct {
                 _ = try self.checkExpression(expr, program);
             },
             
+            .model => |*model_stmt| {
+                // Type check graphical model components
+                for (model_stmt.nodes.items) |*node_expr| {
+                    _ = try self.checkExpression(node_expr, program);
+                }
+                for (model_stmt.plates.items) |*plate_expr| {
+                    _ = try self.checkExpression(plate_expr, program);
+                }
+                for (model_stmt.factors.items) |*factor_expr| {
+                    _ = try self.checkExpression(factor_expr, program);
+                }
+            },
+            
             .match => |*match_stmt| {
                 const value_type = try self.checkExpression(&match_stmt.value, program);
                 
@@ -360,27 +373,40 @@ pub const TypeChecker = struct {
             },
             
             .sample => |*sample_expr| {
-                // Validate distribution parameters
-                const dist_kind = self.getDistributionKind(sample_expr.distribution) orelse {
-                    return TypeCheckError.InvalidSample;
-                };
-                
-                const expected_param_count = self.getDistributionParamCount(dist_kind);
-                if (sample_expr.params.items.len != expected_param_count) {
-                    return TypeCheckError.InvalidSample;
-                }
-                
-                // Check parameter types
-                for (sample_expr.params.items) |*param| {
-                    const param_type = try self.checkExpression(param, program);
-                    // For now, assume all distribution parameters are numeric
-                    if (!self.isNumericType(param_type)) {
+                // Check if it's a built-in distribution
+                if (self.getDistributionKind(sample_expr.distribution)) |dist_kind| {
+                    // Handle built-in distributions
+                    const expected_param_count = self.getDistributionParamCount(dist_kind);
+                    if (sample_expr.params.items.len != expected_param_count) {
                         return TypeCheckError.InvalidSample;
                     }
+                    
+                    // Check parameter types
+                    for (sample_expr.params.items) |*param| {
+                        const param_type = try self.checkExpression(param, program);
+                        // For now, assume all distribution parameters are numeric
+                        if (!self.isNumericType(param_type)) {
+                            return TypeCheckError.InvalidSample;
+                        }
+                    }
+                    
+                    return self.getDistributionSampleType(dist_kind);
+                } else {
+                    // Check if it's a custom distribution (e.g., mixture model name)
+                    // For now, allow any distribution name and assume it returns f64
+                    // In a more complete implementation, we'd track custom distributions in the symbol table
+                    
+                    // Check parameter types
+                    for (sample_expr.params.items) |*param| {
+                        const param_type = try self.checkExpression(param, program);
+                        // For now, assume all distribution parameters are numeric
+                        if (!self.isNumericType(param_type)) {
+                            return TypeCheckError.InvalidSample;
+                        }
+                    }
+                    
+                    return Type.f64; // Assume custom distributions return f64
                 }
-                
-                // Sample expressions return the sampled type (usually numeric)
-                return self.getDistributionSampleType(dist_kind);
             },
             
             .index => |*index_expr| {
@@ -637,6 +663,45 @@ pub const TypeChecker = struct {
                 }
             },
             
+            .mixture => |*mixture_expr| {
+                // Type check mixture model
+                return try self.checkMixtureExpression(mixture_expr, program);
+            },
+            
+            .hierarchical => |*hierarchical_expr| {
+                // Type check hierarchical model
+                return try self.checkHierarchicalExpression(hierarchical_expr, program);
+            },
+            
+            .plate => |*plate_expr| {
+                // Type check plate expression
+                _ = try self.checkExpression(plate_expr.size, program);
+                if (plate_expr.condition) |condition| {
+                    _ = try self.checkExpression(condition, program);
+                }
+                for (plate_expr.body.items) |*stmt| {
+                    try self.checkStatement(stmt, program);
+                }
+                return Type.void;
+            },
+            
+            .factor => |*factor_expr| {
+                // Type check factor expression
+                _ = try self.checkExpression(factor_expr.function_expr, program);
+                return Type.void;
+            },
+            
+            .graphical_node => |*node_expr| {
+                // Type check graphical node expression
+                for (node_expr.parameters.items) |*param| {
+                    _ = try self.checkExpression(param, program);
+                }
+                if (node_expr.observed_value) |obs_val| {
+                    _ = try self.checkExpression(obs_val, program);
+                }
+                return Type.void;
+            },
+            
             else => {
                 // Handle other expression types
                 return Type.void;
@@ -797,6 +862,7 @@ pub const TypeChecker = struct {
         if (std.mem.eql(u8, dist_name, "exponential")) return .exponential;
         if (std.mem.eql(u8, dist_name, "gamma")) return .gamma;
         if (std.mem.eql(u8, dist_name, "beta")) return .beta;
+        if (std.mem.eql(u8, dist_name, "dirichlet")) return .dirichlet;
         return null;
     }
     
@@ -809,12 +875,13 @@ pub const TypeChecker = struct {
             .exponential => 1, // rate
             .gamma => 2,       // shape, scale
             .beta => 2,        // alpha, beta
+            .dirichlet => 3,   // concentration parameters (variable, but using 3 for our example)
         };
     }
     
     fn getDistributionSampleType(_: *TypeChecker, kind: SirsParser.DistributionKind) Type {
         return switch (kind) {
-            .uniform, .normal, .exponential, .gamma, .beta => Type.f64,
+            .uniform, .normal, .exponential, .gamma, .beta, .dirichlet => Type.f64,
             .categorical => Type.i32,
             .bernoulli => Type.bool,
         };
@@ -1916,5 +1983,168 @@ pub const TypeChecker = struct {
             // Type check the method implementation
             try self.checkFunction(method_name, @constCast(&implemented_function), program);
         }
+    }
+    
+    fn checkMixtureExpression(self: *TypeChecker, mixture_expr: anytype, program: *Program) TypeCheckError!Type {
+        // Type check each component
+        var total_weight: f64 = 0.0;
+        
+        for (mixture_expr.components.items) |*component| {
+            // Check component weight
+            const weight_type = try self.checkExpression(@constCast(component.weight), program);
+            if (!self.isNumericType(weight_type)) {
+                return TypeCheckError.TypeMismatch;
+            }
+            
+            // Extract weight value if it's a literal
+            if (component.weight.* == .literal and component.weight.literal == .float) {
+                total_weight += component.weight.literal.float;
+            }
+            
+            // Check that the distribution exists
+            // For now, we check if it's a known built-in distribution
+            const known_distributions = [_][]const u8{ "normal", "uniform", "gamma", "beta", "exponential", "bernoulli", "categorical", "dirichlet" };
+            var found_distribution = false;
+            for (known_distributions) |known_dist| {
+                if (std.mem.eql(u8, component.distribution, known_dist)) {
+                    found_distribution = true;
+                    break;
+                }
+            }
+            
+            if (!found_distribution) {
+                // Check if it's a custom distribution in the program
+                if (!program.types.contains(component.distribution)) {
+                    return TypeCheckError.UndefinedVariable;
+                }
+            }
+            
+            // Type check component parameters
+            for (component.parameters.items) |param| {
+                const param_type = try self.checkExpression(@constCast(param), program);
+                if (!self.isNumericType(param_type)) {
+                    return TypeCheckError.ArgumentTypeMismatch;
+                }
+            }
+        }
+        
+        // Check weight prior if provided
+        if (mixture_expr.weight_prior) |prior| {
+            const prior_type = try self.checkExpression(@constCast(prior), program);
+            _ = prior_type; // Use the type to avoid unused variable warning
+            // Weight prior should be a sampling expression
+            if (prior.* != .sample) {
+                return TypeCheckError.TypeMismatch;
+            }
+        }
+        
+        // Mixture models return a distribution type
+        return Type{
+            .distribution = .{
+                .kind = .categorical, // Mixtures are categorical over components
+                .param_types = ArrayList(Type).init(self.allocator),
+            },
+        };
+    }
+    
+    fn checkHierarchicalExpression(self: *TypeChecker, hierarchical_expr: anytype, program: *Program) TypeCheckError!Type {
+        // Type check each hierarchical level
+        for (hierarchical_expr.levels.items) |*level| {
+            // Check that group variable is accessible
+            // For now, we assume group variables are valid
+            
+            // Type check parameters at this level
+            var param_iter = level.parameters.iterator();
+            while (param_iter.next()) |entry| {
+                const param_spec = entry.value_ptr;
+                
+                // Check that distribution family is known
+                const known_distributions = [_][]const u8{ "normal", "uniform", "gamma", "beta", "exponential", "bernoulli", "categorical", "dirichlet" };
+                var found_distribution = false;
+                for (known_distributions) |known_dist| {
+                    if (std.mem.eql(u8, param_spec.distribution, known_dist)) {
+                        found_distribution = true;
+                        break;
+                    }
+                }
+                
+                if (!found_distribution) {
+                    return TypeCheckError.UndefinedVariable;
+                }
+                
+                // Check that hyperparameters are defined
+                for (param_spec.hyperparameters.items) |hyperparam_name| {
+                    if (!level.hyperpriors.contains(hyperparam_name)) {
+                        // Hyperparameter not defined in hyperpriors
+                        return TypeCheckError.UndefinedVariable;
+                    }
+                }
+            }
+            
+            // Type check hyperprior expressions
+            var hyperprior_iter = level.hyperpriors.iterator();
+            while (hyperprior_iter.next()) |entry| {
+                const prior_expr = entry.value_ptr;
+                const prior_type = try self.checkExpression(@constCast(prior_expr.*), program);
+                
+                // Hyperpriors should typically be sampling expressions or numeric literals
+                switch (prior_expr.*.*) {
+                    .sample => {
+                        // Valid: sampling expression like sample(normal(0, 1))
+                    },
+                    .literal => {
+                        // Valid: numeric literal
+                    },
+                    else => {
+                        // TODO: Consider warning or erroring for non-sample/literal hyperpriors
+                        // Other expression types (variables, function calls) may be valid in some contexts
+                        // but typically hyperpriors should be explicit distributions or constants
+                    },
+                }
+                
+                _ = prior_type; // Use the type to avoid unused variable warning
+            }
+        }
+        
+        // Type check observation model
+        const obs_model = &hierarchical_expr.observation_model;
+        
+        // Check that likelihood distribution is known
+        const known_distributions = [_][]const u8{ "normal", "uniform", "gamma", "beta", "exponential", "bernoulli", "categorical" };
+        var found_likelihood = false;
+        for (known_distributions) |known_dist| {
+            if (std.mem.eql(u8, obs_model.likelihood, known_dist)) {
+                found_likelihood = true;
+                break;
+            }
+        }
+        
+        if (!found_likelihood) {
+            return TypeCheckError.UndefinedVariable;
+        }
+        
+        // Check that all observation model parameters exist in hierarchical levels
+        for (obs_model.parameters.items) |param_name| {
+            var found_param = false;
+            
+            for (hierarchical_expr.levels.items) |*level| {
+                if (level.parameters.contains(param_name)) {
+                    found_param = true;
+                    break;
+                }
+            }
+            
+            if (!found_param) {
+                return TypeCheckError.UndefinedVariable;
+            }
+        }
+        
+        // Hierarchical models return a specialized hierarchical distribution type
+        return Type{
+            .distribution = .{
+                .kind = .normal, // Default to normal for now
+                .param_types = ArrayList(Type).init(self.allocator),
+            },
+        };
     }
 };

@@ -76,7 +76,7 @@ test "DistributionBuilder fluent API" {
     try testing.expect(distribution.parameters.items.len == 2);
     try testing.expect(distribution.support.support_type == .positive_real);
     try testing.expect(std.mem.eql(u8, distribution.log_prob_function, "myDistributionLogProb"));
-    try testing.expectEqual(distribution.sample_function.?, "myDistributionSample");
+    try testing.expect(std.mem.eql(u8, distribution.sample_function.?, "myDistributionSample"));
     
     // Check parameter constraints
     const alpha_param = distribution.parameters.items[0];
@@ -287,14 +287,19 @@ test "Distribution validation" {
     // Valid distribution should pass validation
     try testing.expect(try compiler.validateDistribution("ValidDist"));
     
-    // Create an invalid distribution (no log_prob function)
-    var invalid_distribution = CustomDistribution.init(allocator, try allocator.dupe(u8, "InvalidDist"));
-    invalid_distribution.log_prob_function = ""; // Empty - invalid
-    
-    try compiler.getRegistry().registerDistribution(invalid_distribution);
-    
-    // Invalid distribution should fail validation
-    try testing.expect(!(try compiler.validateDistribution("InvalidDist")));
+    // Create an invalid distribution (no log_prob function) in a separate scope
+    {
+        var local_compiler = DistributionCompiler.init(allocator);
+        defer local_compiler.deinit();
+        
+        var invalid_distribution = CustomDistribution.init(allocator, try allocator.dupe(u8, "InvalidDistLocal"));
+        invalid_distribution.log_prob_function = ""; // Empty - invalid
+        
+        try local_compiler.getRegistry().registerDistribution(invalid_distribution);
+        
+        // Invalid distribution should fail validation (silent to avoid stderr output)
+        try testing.expect(!(try local_compiler.validateDistributionSilent("InvalidDistLocal", true)));
+    }
 }
 
 test "Example distributions creation" {

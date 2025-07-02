@@ -96,6 +96,23 @@ pub const DistributionKind = enum {
     exponential,
     gamma,
     beta,
+    dirichlet,
+};
+
+pub const NodeType = enum {
+    observed,
+    latent,
+    parameter,
+    hyperparameter,
+    deterministic,
+};
+
+pub const FactorType = enum {
+    likelihood,
+    prior,
+    constraint,
+    soft_constraint,
+    deterministic,
 };
 
 pub const Literal = union(enum) {
@@ -152,6 +169,70 @@ pub const Expression = union(enum) {
         fields: std.StringHashMap(Expression), // field assignments
     },
     @"await": *Expression, // await expression for async operations
+    mixture: struct {
+        name: []const u8,
+        components: ArrayList(MixtureComponent),
+        weight_prior: ?*Expression, // optional prior for mixture weights
+    },
+    hierarchical: struct {
+        name: []const u8,
+        levels: ArrayList(HierarchicalLevel),
+        observation_model: ObservationModel,
+    },
+    // Graphical model expressions
+    plate: struct {
+        name: []const u8,
+        size: *Expression,
+        index_variable: []const u8,
+        condition: ?*Expression,
+        body: ArrayList(Statement),
+    },
+    factor: struct {
+        name: []const u8,
+        variables: ArrayList([]const u8),
+        function_expr: *Expression,
+        factor_type: FactorType,
+        log_space: bool,
+    },
+    graphical_node: struct {
+        name: []const u8,
+        node_type: NodeType,
+        distribution: ?[]const u8,
+        parameters: ArrayList(Expression),
+        parents: ArrayList([]const u8),
+        observed_value: ?*Expression,
+        plate_memberships: ArrayList([]const u8),
+    },
+};
+
+/// Mixture component for mixture models
+pub const MixtureComponent = struct {
+    weight: *Expression,                    // mixing weight (can be variable or literal)
+    distribution: []const u8,             // distribution name
+    parameters: ArrayList(*Expression),     // distribution parameters
+    label: ?[]const u8,                   // optional component label
+};
+
+/// Hierarchical level specification
+pub const HierarchicalLevel = struct {
+    level_name: []const u8,               // name of this level
+    group_variable: []const u8,           // grouping variable
+    parameters: std.StringHashMap(HierarchicalParameter), // parameters varying by group
+    hyperpriors: std.StringHashMap(*Expression),           // hyperprior distributions
+};
+
+/// Parameter specification in hierarchical models
+pub const HierarchicalParameter = struct {
+    distribution: []const u8,             // distribution family
+    hyperparameters: ArrayList([]const u8), // hyperparameter names
+    link_function: ?[]const u8,           // optional link function
+};
+
+/// Observation model for hierarchical models
+pub const ObservationModel = struct {
+    likelihood: []const u8,               // likelihood distribution
+    parameters: ArrayList([]const u8),    // parameter names from hierarchical levels
+    link_functions: std.StringHashMap([]const u8), // link functions for parameters
 };
 
 pub const OpKind = enum {
@@ -245,6 +326,14 @@ pub const Statement = union(enum) {
         confidence: f64,
     },
     expression: Expression,
+    // Graphical model statement for defining complete models
+    model: struct {
+        name: []const u8,
+        nodes: ArrayList(Expression), // List of graphical_node expressions
+        plates: ArrayList(Expression), // List of plate expressions  
+        factors: ArrayList(Expression), // List of factor expressions
+        inference_target: ?[]const u8,
+    },
 };
 
 pub const Parameter = struct {
@@ -288,6 +377,7 @@ pub const Constant = struct {
 
 pub const Program = struct {
     entry: []const u8,
+    entry_allocated: bool, // Track if entry was allocated and should be freed
     functions: std.StringHashMap(Function),
     types: std.StringHashMap(Type),
     generic_types: std.StringHashMap(GenericType), // generic type definitions
@@ -300,6 +390,7 @@ pub const Program = struct {
     pub fn init(allocator: Allocator) Program {
         return Program{
             .entry = "",
+            .entry_allocated = false, // String literal, don't free
             .functions = std.StringHashMap(Function).init(allocator),
             .types = std.StringHashMap(Type).init(allocator),
             .generic_types = std.StringHashMap(GenericType).init(allocator),
@@ -311,8 +402,8 @@ pub const Program = struct {
     }
     
     pub fn deinit(self: *Program) void {
-        // Free the entry string
-        if (self.entry.len > 0) {
+        // Free the entry string only if it was allocated 
+        if (self.entry_allocated and self.entry.len > 0) {
             self.allocator.free(self.entry);
         }
         
@@ -875,6 +966,7 @@ pub const Parser = struct {
         const entry = program_obj.object.get("entry") orelse return SirsError.MissingField;
         if (entry != .string) return SirsError.InvalidType;
         program.entry = self.allocator.dupe(u8, entry.string) catch return SirsError.OutOfMemory;
+        program.entry_allocated = true;
         
         // Parse functions
         if (program_obj.object.get("functions")) |functions_obj| {
@@ -1662,6 +1754,16 @@ pub const Parser = struct {
             return Expression{ .@"await" = expr_ptr };
         }
         
+        // Handle mixture model expressions
+        if (expr_obj.object.get("mixture")) |mixture_obj| {
+            return try self.parseMixtureExpression(mixture_obj);
+        }
+        
+        // Handle hierarchical model expressions
+        if (expr_obj.object.get("hierarchical")) |hierarchical_obj| {
+            return try self.parseHierarchicalExpression(hierarchical_obj);
+        }
+        
         return SirsError.InvalidExpression;
     }
     
@@ -2312,6 +2414,200 @@ pub const Parser = struct {
             .target_type = target_type,
             .type_args = type_args,
             .methods = methods,
+        };
+    }
+    
+    fn parseMixtureExpression(self: *Parser, mixture_obj: json.Value) SirsError!Expression {
+        if (mixture_obj != .object) return SirsError.InvalidExpression;
+        
+        const name = mixture_obj.object.get("name") orelse return SirsError.MissingField;
+        if (name != .string) return SirsError.InvalidType;
+        
+        const components_obj = mixture_obj.object.get("components") orelse return SirsError.MissingField;
+        if (components_obj != .array) return SirsError.InvalidType;
+        
+        var components = ArrayList(MixtureComponent).init(self.allocator);
+        
+        for (components_obj.array.items) |component_obj| {
+            if (component_obj != .object) return SirsError.InvalidType;
+            
+            const weight_obj = component_obj.object.get("weight") orelse return SirsError.MissingField;
+            const weight = try self.parseExpression(weight_obj);
+            const weight_ptr = self.allocator.create(Expression) catch return SirsError.OutOfMemory;
+            weight_ptr.* = weight;
+            
+            const distribution = component_obj.object.get("distribution") orelse return SirsError.MissingField;
+            if (distribution != .string) return SirsError.InvalidType;
+            
+            const params_obj = component_obj.object.get("parameters") orelse return SirsError.MissingField;
+            if (params_obj != .array) return SirsError.InvalidType;
+            
+            var parameters = ArrayList(*Expression).init(self.allocator);
+            for (params_obj.array.items) |param_obj| {
+                const param = try self.parseExpression(param_obj);
+                const param_ptr = self.allocator.create(Expression) catch return SirsError.OutOfMemory;
+                param_ptr.* = param;
+                try parameters.append(param_ptr);
+            }
+            
+            var label: ?[]const u8 = null;
+            if (component_obj.object.get("label")) |label_obj| {
+                if (label_obj == .string) {
+                    label = try self.allocator.dupe(u8, label_obj.string);
+                }
+            }
+            
+            const component = MixtureComponent{
+                .weight = weight_ptr,
+                .distribution = try self.allocator.dupe(u8, distribution.string),
+                .parameters = parameters,
+                .label = label,
+            };
+            
+            try components.append(component);
+        }
+        
+        var weight_prior: ?*Expression = null;
+        if (mixture_obj.object.get("weight_prior")) |prior_obj| {
+            const prior_expr = try self.parseExpression(prior_obj);
+            const prior_ptr = self.allocator.create(Expression) catch return SirsError.OutOfMemory;
+            prior_ptr.* = prior_expr;
+            weight_prior = prior_ptr;
+        }
+        
+        return Expression{
+            .mixture = .{
+                .name = try self.allocator.dupe(u8, name.string),
+                .components = components,
+                .weight_prior = weight_prior,
+            },
+        };
+    }
+    
+    fn parseHierarchicalExpression(self: *Parser, hierarchical_obj: json.Value) SirsError!Expression {
+        if (hierarchical_obj != .object) return SirsError.InvalidExpression;
+        
+        const name = hierarchical_obj.object.get("name") orelse return SirsError.MissingField;
+        if (name != .string) return SirsError.InvalidType;
+        
+        const levels_obj = hierarchical_obj.object.get("levels") orelse return SirsError.MissingField;
+        if (levels_obj != .array) return SirsError.InvalidType;
+        
+        var levels = ArrayList(HierarchicalLevel).init(self.allocator);
+        
+        for (levels_obj.array.items) |level_obj| {
+            if (level_obj != .object) return SirsError.InvalidType;
+            
+            const level_name = level_obj.object.get("level_name") orelse return SirsError.MissingField;
+            if (level_name != .string) return SirsError.InvalidType;
+            
+            const group_variable = level_obj.object.get("group_variable") orelse return SirsError.MissingField;
+            if (group_variable != .string) return SirsError.InvalidType;
+            
+            var parameters = std.StringHashMap(HierarchicalParameter).init(self.allocator);
+            if (level_obj.object.get("parameters")) |params_obj| {
+                if (params_obj == .object) {
+                    var param_iter = params_obj.object.iterator();
+                    while (param_iter.next()) |entry| {
+                        const param_name = try self.allocator.dupe(u8, entry.key_ptr.*);
+                        const param_def = entry.value_ptr.*;
+                        
+                        if (param_def != .object) return SirsError.InvalidType;
+                        
+                        const distribution = param_def.object.get("distribution") orelse return SirsError.MissingField;
+                        if (distribution != .string) return SirsError.InvalidType;
+                        
+                        const hyperparams_obj = param_def.object.get("hyperparameters") orelse return SirsError.MissingField;
+                        if (hyperparams_obj != .array) return SirsError.InvalidType;
+                        
+                        var hyperparameters = ArrayList([]const u8).init(self.allocator);
+                        for (hyperparams_obj.array.items) |hyperparam_obj| {
+                            if (hyperparam_obj != .string) return SirsError.InvalidType;
+                            try hyperparameters.append(try self.allocator.dupe(u8, hyperparam_obj.string));
+                        }
+                        
+                        var link_function: ?[]const u8 = null;
+                        if (param_def.object.get("link_function")) |link_obj| {
+                            if (link_obj == .string) {
+                                link_function = try self.allocator.dupe(u8, link_obj.string);
+                            }
+                        }
+                        
+                        const param = HierarchicalParameter{
+                            .distribution = try self.allocator.dupe(u8, distribution.string),
+                            .hyperparameters = hyperparameters,
+                            .link_function = link_function,
+                        };
+                        
+                        try parameters.put(param_name, param);
+                    }
+                }
+            }
+            
+            var hyperpriors = std.StringHashMap(*Expression).init(self.allocator);
+            if (level_obj.object.get("hyperpriors")) |priors_obj| {
+                if (priors_obj == .object) {
+                    var prior_iter = priors_obj.object.iterator();
+                    while (prior_iter.next()) |entry| {
+                        const prior_name = try self.allocator.dupe(u8, entry.key_ptr.*);
+                        const prior_expr = try self.parseExpression(entry.value_ptr.*);
+                        const prior_ptr = self.allocator.create(Expression) catch return SirsError.OutOfMemory;
+                        prior_ptr.* = prior_expr;
+                        try hyperpriors.put(prior_name, prior_ptr);
+                    }
+                }
+            }
+            
+            const level = HierarchicalLevel{
+                .level_name = try self.allocator.dupe(u8, level_name.string),
+                .group_variable = try self.allocator.dupe(u8, group_variable.string),
+                .parameters = parameters,
+                .hyperpriors = hyperpriors,
+            };
+            
+            try levels.append(level);
+        }
+        
+        const obs_model_obj = hierarchical_obj.object.get("observation_model") orelse return SirsError.MissingField;
+        if (obs_model_obj != .object) return SirsError.InvalidType;
+        
+        const likelihood = obs_model_obj.object.get("likelihood") orelse return SirsError.MissingField;
+        if (likelihood != .string) return SirsError.InvalidType;
+        
+        const params_obj = obs_model_obj.object.get("parameters") orelse return SirsError.MissingField;
+        if (params_obj != .array) return SirsError.InvalidType;
+        
+        var parameters = ArrayList([]const u8).init(self.allocator);
+        for (params_obj.array.items) |param_obj| {
+            if (param_obj != .string) return SirsError.InvalidType;
+            try parameters.append(try self.allocator.dupe(u8, param_obj.string));
+        }
+        
+        var link_functions = std.StringHashMap([]const u8).init(self.allocator);
+        if (obs_model_obj.object.get("link_functions")) |links_obj| {
+            if (links_obj == .object) {
+                var link_iter = links_obj.object.iterator();
+                while (link_iter.next()) |entry| {
+                    const param_name = try self.allocator.dupe(u8, entry.key_ptr.*);
+                    if (entry.value_ptr.* != .string) return SirsError.InvalidType;
+                    const link_func = try self.allocator.dupe(u8, entry.value_ptr.string);
+                    try link_functions.put(param_name, link_func);
+                }
+            }
+        }
+        
+        const observation_model = ObservationModel{
+            .likelihood = try self.allocator.dupe(u8, likelihood.string),
+            .parameters = parameters,
+            .link_functions = link_functions,
+        };
+        
+        return Expression{
+            .hierarchical = .{
+                .name = try self.allocator.dupe(u8, name.string),
+                .levels = levels,
+                .observation_model = observation_model,
+            },
         };
     }
 };

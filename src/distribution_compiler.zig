@@ -343,6 +343,7 @@ pub const DistributionCompiler = struct {
         
         // Extract distribution name from function name
         const dist_name = try self.extractDistributionNameFromFunction(func_name);
+        defer self.allocator.free(dist_name);
         
         if (self.registry.getDistribution(dist_name)) |distribution| {
             if (std.mem.endsWith(u8, func_name, "_log_prob")) {
@@ -476,15 +477,24 @@ pub const DistributionCompiler = struct {
     
     /// Validate distribution definition
     pub fn validateDistribution(self: *DistributionCompiler, dist_name: []const u8) !bool {
+        return self.validateDistributionSilent(dist_name, false);
+    }
+    
+    /// Validate distribution definition with optional silent mode
+    pub fn validateDistributionSilent(self: *DistributionCompiler, dist_name: []const u8, silent: bool) !bool {
         if (self.registry.getDistribution(dist_name)) |distribution| {
             // Check required components
             if (distribution.log_prob_function.len == 0) {
-                print("Error: Distribution '{s}' missing log_prob function\n", .{dist_name});
+                if (!silent) {
+                    print("Error: Distribution '{s}' missing log_prob function\n", .{dist_name});
+                }
                 return false;
             }
             
             if (distribution.parameters.items.len == 0) {
-                print("Warning: Distribution '{s}' has no parameters\n", .{dist_name});
+                if (!silent) {
+                    print("Warning: Distribution '{s}' has no parameters\n", .{dist_name});
+                }
             }
             
             // Validate parameter constraints
@@ -492,7 +502,9 @@ pub const DistributionCompiler = struct {
                 if (param.constraints) |constraints| {
                     if (constraints.min_value != null and constraints.max_value != null) {
                         if (constraints.min_value.? >= constraints.max_value.?) {
-                            print("Error: Parameter '{s}' has invalid range\n", .{param.name});
+                            if (!silent) {
+                                print("Error: Parameter '{s}' has invalid range\n", .{param.name});
+                            }
                             return false;
                         }
                     }
@@ -502,7 +514,9 @@ pub const DistributionCompiler = struct {
             return true;
         }
         
-        print("Error: Distribution '{s}' not found\n", .{dist_name});
+        if (!silent) {
+            print("Error: Distribution '{s}' not found\n", .{dist_name});
+        }
         return false;
     }
     

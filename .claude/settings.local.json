@@ -69,7 +69,10 @@
       "Bash(for i in {1..5})",
       "Bash(do echo \"Run $i:\")",
       "Bash(done)",
-      "Bash(zig ast-check:*)"
+      "Bash(zig ast-check:*)",
+      "Bash(./dist/gaussian_mixture_model)",
+      "Bash(./dist/hierarchical_linear_model)",
+      "Bash(./dist/observability_anomaly_detection)"
     ],
     "deny": []
   }

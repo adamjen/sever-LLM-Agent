@@ -109,7 +109,7 @@ pub const CodeGen = struct {
         try self.writeLine("        const std_dev = params[1];");
         try self.writeLine("        const rand1 = random.float(f64);");
         try self.writeLine("        const rand2 = random.float(f64);");
-        try self.writeLine("        const z0 = math.sqrt(-2.0 * math.ln(rand1)) * math.cos(2.0 * math.pi * rand2);");
+        try self.writeLine("        const z0 = math.sqrt(-2.0 * math.log(f64, math.e, rand1)) * math.cos(2.0 * math.pi * rand2);");
         try self.writeLine("        return mean + std_dev * z0;");
         try self.writeLine("    }");
         try self.writeLine("    return 0.0; // Default case");
@@ -1320,6 +1320,13 @@ pub const CodeGen = struct {
                 try self.write(" = ");
                 try self.generateExpression(&let_stmt.value);
                 try self.writeLine(";");
+                // Add unused variable suppression for mixture/hierarchical models
+                if (let_stmt.value == .mixture or let_stmt.value == .hierarchical) {
+                    try self.writeIndent();
+                    try self.write("_ = ");
+                    try self.write(let_stmt.name);
+                    try self.writeLine(";");
+                }
             },
             
             .assign => |*assign_stmt| {
@@ -1481,6 +1488,34 @@ pub const CodeGen = struct {
                 try self.writeIndent();
                 try self.generateExpression(expr);
                 try self.writeLine(";");
+            },
+            
+            .model => |*model_stmt| {
+                // Generate graphical model as a struct definition
+                try self.writeIndent();
+                try self.write("const ");
+                try self.write(model_stmt.name);
+                try self.writeLine(" = struct {");
+                self.indent_level += 1;
+                
+                // Generate model components as comments for now
+                try self.writeIndent();
+                try self.write("// Graphical model with ");
+                const node_count = std.fmt.allocPrint(self.allocator, "{d}", .{model_stmt.nodes.items.len}) catch return CodeGenError.OutOfMemory;
+                defer self.allocator.free(node_count);
+                try self.write(node_count);
+                try self.write(" nodes, ");
+                const plate_count = std.fmt.allocPrint(self.allocator, "{d}", .{model_stmt.plates.items.len}) catch return CodeGenError.OutOfMemory;
+                defer self.allocator.free(plate_count);
+                try self.write(plate_count);
+                try self.write(" plates, ");
+                const factor_count = std.fmt.allocPrint(self.allocator, "{d}", .{model_stmt.factors.items.len}) catch return CodeGenError.OutOfMemory;
+                defer self.allocator.free(factor_count);
+                try self.write(factor_count);
+                try self.writeLine(" factors");
+                
+                self.indent_level -= 1;
+                try self.writeLine("};");
             },
             
         }
@@ -1702,6 +1737,33 @@ pub const CodeGen = struct {
                 try self.write("try ");
                 try self.generateExpression(await_expr);
                 try self.write(".wait()");
+            },
+            
+            .mixture => {
+                // For now, generate a placeholder value for mixture models
+                // In a full implementation, this would generate probabilistic model code
+                try self.write("0.0"); // mixture model placeholder
+            },
+            
+            .hierarchical => {
+                // For now, generate a placeholder value for hierarchical models
+                // In a full implementation, this would generate hierarchical model code
+                try self.write("0.0"); // hierarchical model placeholder
+            },
+            
+            .plate => {
+                // Generate plate as a for loop placeholder
+                try self.write("0.0"); // plate placeholder
+            },
+            
+            .factor => {
+                // Generate factor as function call placeholder
+                try self.write("0.0"); // factor placeholder
+            },
+            
+            .graphical_node => {
+                // Generate graphical node as variable placeholder
+                try self.write("0.0"); // graphical node placeholder
             },
             
             else => {

@@ -1,0 +1,352 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "comment": "Variational Inference Example in SIRS"
+          },
+          {
+            "comment": "Bayesian parameter estimation for normal model"
+          },
+          {
+            "let": {
+              "name": "data",
+              "value": {
+                "array": [
+                  {"literal": 1.2},
+                  {"literal": 0.8},
+                  {"literal": 2.1},
+                  {"literal": 1.5},
+                  {"literal": 0.9},
+                  {"literal": 1.8},
+                  {"literal": 1.1},
+                  {"literal": 1.6}
+                ]
+              }
+            }
+          },
+          {
+            "comment": "Prior distributions for parameters"
+          },
+          {
+            "let": {
+              "name": "mu",
+              "value": {
+                "sample": {
+                  "distribution": "normal",
+                  "params": [
+                    {"literal": 0.0},
+                    {"literal": 10.0}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "sigma",
+              "value": {
+                "sample": {
+                  "distribution": "gamma",
+                  "params": [
+                    {"literal": 2.0},
+                    {"literal": 1.0}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "comment": "Configure variational inference solver"
+          },
+          {
+            "let": {
+              "name": "vi_config",
+              "value": {
+                "struct": {
+                  "type": "VIConfig",
+                  "fields": {
+                    "max_iterations": {"literal": 200},
+                    "tolerance": {"literal": 1e-5},
+                    "learning_rate": {"literal": 0.05},
+                    "sample_size": {"literal": 300},
+                    "print_progress": {"literal": true},
+                    "momentum": {"literal": 0.95},
+                    "adaptive_learning": {"literal": true},
+                    "learning_rate_decay": {"literal": 0.99}
+                  }
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "vi_solver",
+              "value": {
+                "call": {
+                  "function": "VISolver.init",
+                  "args": [
+                    {"var": "allocator"},
+                    {"var": "vi_config"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "comment": "Initialize variational families"
+          },
+          {
+            "call": {
+              "function": "vi_solver.initVariable",
+              "args": [
+                {"literal": "mu"},
+                {"enum": "VariationalFamily.gaussian"}
+              ]
+            }
+          },
+          {
+            "call": {
+              "function": "vi_solver.initVariable",
+              "args": [
+                {"literal": "sigma"},
+                {"enum": "VariationalFamily.gamma"}
+              ]
+            }
+          },
+          {
+            "comment": "Define log probability function for the model"
+          },
+          {
+            "let": {
+              "name": "log_prob_fn",
+              "value": {
+                "function": {
+                  "args": [
+                    {"name": "params", "type": "StringHashMap(f64)"},
+                    {"name": "context", "type": "?*anyopaque"}
+                  ],
+                  "return": "f64",
+                  "body": [
+                    {
+                      "let": {
+                        "name": "mu_val",
+                        "value": {
+                          "call": {
+                            "function": "params.get",
+                            "args": [{"literal": "mu"}]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "let": {
+                        "name": "sigma_val",
+                        "value": {
+                          "call": {
+                            "function": "params.get",
+                            "args": [{"literal": "sigma"}]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "if": {
+                        "condition": {
+                          "binary_op": {
+                            "op": "or",
+                            "left": {"call": {"function": "mu_val.is_null", "args": []}},
+                            "right": {"call": {"function": "sigma_val.is_null", "args": []}}
+                          }
+                        },
+                        "then": [
+                          {"return": {"literal": -1.7976931348623157e+308}}
+                        ]
+                      }
+                    },
+                    {
+                      "let": {
+                        "name": "log_prob",
+                        "value": {"literal": 0.0}
+                      }
+                    },
+                    {
+                      "comment": "Prior contributions"
+                    },
+                    {
+                      "assign": {
+                        "target": "log_prob",
+                        "value": {
+                          "binary_op": {
+                            "op": "add",
+                            "left": {"var": "log_prob"},
+                            "right": {
+                              "call": {
+                                "function": "normal_log_prob",
+                                "args": [
+                                  {"var": "mu_val"},
+                                  {"literal": 0.0},
+                                  {"literal": 10.0}
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "assign": {
+                        "target": "log_prob",
+                        "value": {
+                          "binary_op": {
+                            "op": "add",
+                            "left": {"var": "log_prob"},
+                            "right": {
+                              "call": {
+                                "function": "gamma_log_prob",
+                                "args": [
+                                  {"var": "sigma_val"},
+                                  {"literal": 2.0},
+                                  {"literal": 1.0}
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "comment": "Likelihood contributions"
+                    },
+                    {
+                      "for": {
+                        "var": "i",
+                        "range": {
+                          "start": {"literal": 0},
+                          "end": {"call": {"function": "data.len", "args": []}}
+                        },
+                        "body": [
+                          {
+                            "assign": {
+                              "target": "log_prob",
+                              "value": {
+                                "binary_op": {
+                                  "op": "add",
+                                  "left": {"var": "log_prob"},
+                                  "right": {
+                                    "call": {
+                                      "function": "normal_log_prob",
+                                      "args": [
+                                        {"index": {"array": "data", "index": {"var": "i"}}},
+                                        {"var": "mu_val"},
+                                        {"var": "sigma_val"}
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "return": {"var": "log_prob"}
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "comment": "Run variational inference optimization"
+          },
+          {
+            "call": {
+              "function": "vi_solver.optimize",
+              "args": [
+                {"var": "log_prob_fn"},
+                {"literal": null}
+              ]
+            }
+          },
+          {
+            "comment": "Extract results"
+          },
+          {
+            "let": {
+              "name": "mu_posterior",
+              "value": {
+                "call": {
+                  "function": "vi_solver.getVariationalParams",
+                  "args": [{"literal": "mu"}]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "sigma_posterior",
+              "value": {
+                "call": {
+                  "function": "vi_solver.getVariationalParams",
+                  "args": [{"literal": "sigma"}]
+                }
+              }
+            }
+          },
+          {
+            "comment": "Print results"
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Posterior for mu: N({d}, {d})"},
+                {
+                  "call": {
+                    "function": "mu_posterior.getParam",
+                    "args": [{"literal": "mu"}]
+                  }
+                },
+                {
+                  "call": {
+                    "function": "mu_posterior.getParam",
+                    "args": [{"literal": "sigma"}]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Posterior for sigma: Gamma({d}, {d})"},
+                {
+                  "call": {
+                    "function": "sigma_posterior.getParam",
+                    "args": [{"literal": "shape"}]
+                  }
+                },
+                {
+                  "call": {
+                    "function": "sigma_posterior.getParam",
+                    "args": [{"literal": "rate"}]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "types": {},
+    "constants": {},
+    "interfaces": {}
+  }
+}

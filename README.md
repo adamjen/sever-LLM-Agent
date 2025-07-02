@@ -51,8 +51,8 @@ zig build
 - **Exception handling**: try/catch/finally blocks with custom error types and Result<T,E> types
 - **Control structures**: If/else, while/for loops with break/continue validation, match expressions
 
-### Probabilistic Programming
-Built-in support for statistical computing with native distributions, custom distribution definitions, and advanced sampling capabilities
+### Advanced Probabilistic Programming
+Built-in support for statistical computing with native distributions, custom distribution definitions, advanced sampling capabilities, MCMC inference, variational inference, and automatic differentiation
 
 ### Comprehensive Standard Library
 - **HTTP client**: `http_get`, `http_post`, `http_put`, `http_delete`
@@ -118,7 +118,11 @@ The compiler includes advanced optimization passes:
 5. **Code Generator** (`codegen.zig`) - Emits native Zig code for compilation
 6. **Formatter** (`formatter.zig`) - Pretty-prints SIRS JSON with consistent style
 7. **Runtime Library** (`runtime/`) - Provides probabilistic programming primitives
-8. **MCP Server** (`mcp.zig`) - Enables LLM interaction and introspection
+8. **MCMC Engine** (`mcmc.zig`) - Markov Chain Monte Carlo sampling with Hamiltonian Monte Carlo
+9. **Variational Inference** (`variational_inference.zig`) - Optimization-based probabilistic inference
+10. **Automatic Differentiation** (`autodiff.zig`) - Forward and reverse-mode gradient computation
+11. **Graphical Models** (`graphical_model.zig`) - Probabilistic model specification and compilation
+12. **MCP Server** (`mcp.zig`) - Enables LLM interaction and introspection
 
 ## 🛠️ Tools
 
@@ -173,7 +177,7 @@ Sever includes a comprehensive Model Context Protocol server that exposes advanc
 - `check_dependency_health` - Overall codebase health scoring and recommendations
 - `get_reachability_analysis` - Analyze code reachability from entry points
 
-**Custom Distribution Tools (Probabilistic Programming):**
+**Probabilistic Programming Tools:**
 - `create_custom_distribution` - Define new probability distributions with parameters and constraints
 - `compile_distributions_from_sirs` - Extract distribution definitions from existing SIRS code
 - `list_distributions` - Browse all available built-in and custom distributions
@@ -182,6 +186,13 @@ Sever includes a comprehensive Model Context Protocol server that exposes advanc
 - `generate_distribution_code` - Generate SIRS implementation code for distributions
 - `create_mixture_distribution` - Compose mixture models from existing distributions
 - `validate_distribution_definition` - Verify distribution mathematical correctness
+
+**Advanced Inference Tools:**
+- MCMC sampling with Metropolis-Hastings, Adaptive Metropolis, and Hamiltonian Monte Carlo
+- Variational inference with mean-field approximation and momentum optimization
+- Automatic differentiation with forward-mode (dual numbers) and reverse-mode (computation graphs)
+- Graphical model specification with nodes, plates, and factor compilation
+- Gradient-based optimization for complex probabilistic models
 
 ### Interactive Development
 - **REPL Mode** - Interactive evaluation of SIRS expressions with JSON syntax
@@ -264,6 +275,13 @@ Built-in support for statistical computing:
 - `exponential(rate)` - Exponential distribution
 - `gamma(shape, scale)` - Gamma distribution
 - `beta(alpha, beta)` - Beta distribution
+
+**Advanced Inference Methods:**
+- **MCMC Sampling** - Metropolis-Hastings, Adaptive Metropolis, Hamiltonian Monte Carlo (HMC)
+- **Variational Inference** - Mean-field approximation, momentum optimization, adaptive learning rates
+- **Automatic Differentiation** - Forward-mode with dual numbers, reverse-mode with computation graphs
+- **Graphical Models** - Declarative model specification with plates, factors, and dependency analysis
+- **Gradient-Based Methods** - HMC with leapfrog integration, VI with automatic differentiation
 
 **Custom Distribution System:**
 - **Distribution Builder** - Fluent API for defining custom probability distributions
@@ -398,9 +416,18 @@ sever1/
 │   ├── custom_distributions.zig # Custom distribution framework
 │   ├── distribution_compiler.zig # Distribution code compiler
 │   ├── mcp_distribution_tools.zig # MCP tools for probabilistic programming
+│   ├── mcmc.zig          # MCMC sampling engine (Metropolis-Hastings, HMC)
+│   ├── variational_inference.zig # Variational inference with momentum optimization
+│   ├── autodiff.zig      # Automatic differentiation (forward/reverse mode)
+│   ├── graphical_model.zig # Graphical model specification and compilation
 │   ├── test_custom_distributions.zig # Distribution system tests
 │   ├── test_mcp_distribution_tools.zig # MCP distribution tool tests
-│   └── test_distribution_compiler.zig # Distribution compiler tests
+│   ├── test_distribution_compiler.zig # Distribution compiler tests
+│   ├── test_mcmc_integration.zig # MCMC integration tests
+│   ├── test_variational_inference.zig # Variational inference tests
+│   ├── test_autodiff.zig # Automatic differentiation tests
+│   ├── test_graphical_model.zig # Graphical model tests
+│   └── test_hmc_integration.zig # Hamiltonian Monte Carlo tests
 ├── runtime/
 │   └── sever_runtime.zig # Probabilistic runtime
 ├── examples/
@@ -419,7 +446,10 @@ sever1/
 │   ├── file_io_test.sirs.json
 │   ├── json_test.sirs.json
 │   ├── json_http_test.sirs.json
-│   └── string_test.sirs.json
+│   ├── string_test.sirs.json
+│   ├── vi_example.sirs      # Variational inference example
+│   ├── graphical_model_example.sirs # Hierarchical Bayesian model
+│   └── hmc_autodiff_example.sirs # HMC with automatic differentiation
 ├── sirs-spec.json        # Complete SIRS schema
 ├── build.zig            # Zig build configuration
 ├── README.md            # This file

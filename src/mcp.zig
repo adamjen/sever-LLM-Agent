@@ -1175,6 +1175,7 @@ pub const McpServer = struct {
             .generic_instance => |g| g.base_type,
             .@"interface" => |i| i.name,
             .trait_object => |t| t.trait_name,
+            .result => "Result",
         };
     }
     

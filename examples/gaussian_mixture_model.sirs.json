@@ -1,0 +1,84 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32",
+        "body": [
+          {
+            "let": {
+              "name": "customer_segments",
+              "value": {
+                "mixture": {
+                  "name": "customer_spending_segments",
+                  "components": [
+                    {
+                      "weight": {"literal": 0.4},
+                      "distribution": "normal",
+                      "parameters": [
+                        {"literal": 100.0},
+                        {"literal": 20.0}
+                      ],
+                      "label": "low_spenders"
+                    },
+                    {
+                      "weight": {"literal": 0.35},
+                      "distribution": "normal", 
+                      "parameters": [
+                        {"literal": 300.0},
+                        {"literal": 50.0}
+                      ],
+                      "label": "medium_spenders"
+                    },
+                    {
+                      "weight": {"literal": 0.25},
+                      "distribution": "normal",
+                      "parameters": [
+                        {"literal": 800.0},
+                        {"literal": 100.0}
+                      ],
+                      "label": "high_spenders"
+                    }
+                  ],
+                  "weight_prior": {
+                    "sample": {
+                      "distribution": "dirichlet",
+                      "params": [
+                        {"literal": 1.0},
+                        {"literal": 1.0}, 
+                        {"literal": 1.0}
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "customer_sample",
+              "value": {
+                "sample": {
+                  "distribution": "customer_spending_segments",
+                  "params": []
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print_float",
+                "args": [{"var": "customer_sample"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

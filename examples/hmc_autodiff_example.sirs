@@ -1,0 +1,769 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "comment": "HMC with Automatic Differentiation Example"
+          },
+          {
+            "comment": "Bayesian logistic regression using HMC and exact gradients"
+          },
+          {
+            "let": {
+              "name": "X",
+              "value": {
+                "array": [
+                  {"array": [{"literal": 1.0}, {"literal": 2.1}]},
+                  {"array": [{"literal": 1.0}, {"literal": -0.5}]},
+                  {"array": [{"literal": 1.0}, {"literal": 1.8}]},
+                  {"array": [{"literal": 1.0}, {"literal": -1.2}]},
+                  {"array": [{"literal": 1.0}, {"literal": 0.3}]},
+                  {"array": [{"literal": 1.0}, {"literal": 2.5}]},
+                  {"array": [{"literal": 1.0}, {"literal": -0.8}]},
+                  {"array": [{"literal": 1.0}, {"literal": 1.1}]}
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "y",
+              "value": {
+                "array": [
+                  {"literal": 1}, {"literal": 0}, {"literal": 1}, {"literal": 0},
+                  {"literal": 1}, {"literal": 1}, {"literal": 0}, {"literal": 1}
+                ]
+              }
+            }
+          },
+          {
+            "comment": "Configure HMC with automatic differentiation"
+          },
+          {
+            "let": {
+              "name": "hmc_config",
+              "value": {
+                "struct": {
+                  "type": "HMCConfig",
+                  "fields": {
+                    "initial_step_size": {"literal": 0.1},
+                    "num_leapfrog_steps": {"literal": 15},
+                    "adapt_step_size": {"literal": true},
+                    "mass_adaptation": {"literal": false},
+                    "adaptation_window": {"literal": 500}
+                  }
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "hmc_sampler",
+              "value": {
+                "call": {
+                  "function": "HMCSampler.init",
+                  "args": [
+                    {"var": "allocator"},
+                    {"var": "hmc_config"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "comment": "Initialize parameters for logistic regression"
+          },
+          {
+            "call": {
+              "function": "hmc_sampler.initParameter",
+              "args": [
+                {"literal": "beta0"},
+                {"literal": 0.0},
+                {"literal": 1.0}
+              ]
+            }
+          },
+          {
+            "call": {
+              "function": "hmc_sampler.initParameter",
+              "args": [
+                {"literal": "beta1"},
+                {"literal": 0.0},
+                {"literal": 1.0}
+              ]
+            }
+          },
+          {
+            "comment": "Define log probability function with automatic gradients"
+          },
+          {
+            "let": {
+              "name": "logistic_log_prob",
+              "value": {
+                "function": {
+                  "args": [
+                    {"name": "params", "type": "StringHashMap(f64)"},
+                    {"name": "gradients", "type": "StringHashMap(f64)"},
+                    {"name": "context", "type": "?*anyopaque"}
+                  ],
+                  "return": "f64",
+                  "body": [
+                    {
+                      "let": {
+                        "name": "beta0",
+                        "value": {
+                          "call": {
+                            "function": "params.get",
+                            "args": [{"literal": "beta0"}]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "let": {
+                        "name": "beta1", 
+                        "value": {
+                          "call": {
+                            "function": "params.get",
+                            "args": [{"literal": "beta1"}]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "if": {
+                        "condition": {
+                          "op": {
+                            "kind": "or",
+                            "args": [
+                              {"call": {"function": "beta0.is_null", "args": []}},
+                              {"call": {"function": "beta1.is_null", "args": []}}
+                            ]
+                          }
+                        },
+                        "then": [
+                          {"return": {"literal": -1.7976931348623157e+308}}
+                        ]
+                      }
+                    },
+                    {
+                      "let": {
+                        "name": "log_prob",
+                        "value": {"literal": 0.0}
+                      }
+                    },
+                    {
+                      "let": {
+                        "name": "grad_beta0",
+                        "value": {"literal": 0.0}
+                      }
+                    },
+                    {
+                      "let": {
+                        "name": "grad_beta1",
+                        "value": {"literal": 0.0}
+                      }
+                    },
+                    {
+                      "comment": "Prior contributions: beta ~ N(0, 2.5^2)"
+                    },
+                    {
+                      "let": {
+                        "name": "prior_var",
+                        "value": {"literal": 6.25}
+                      }
+                    },
+                    {
+                      "assign": {
+                        "target": "log_prob",
+                        "value": {
+                          "op": {
+                            "kind": "sub",
+                            "args": [
+                              {"var": "log_prob"},
+                              {
+                                "op": {
+                                  "kind": "div",
+                                  "args": [
+                                    {
+                                      "op": {
+                                        "kind": "mul",
+                                        "args": [{"var": "beta0"}, {"var": "beta0"}]
+                                      }
+                                    },
+                                    {
+                                      "op": {
+                                        "kind": "mul",
+                                        "args": [{"literal": 2.0}, {"var": "prior_var"}]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "assign": {
+                        "target": "log_prob",
+                        "value": {
+                          "op": {
+                            "kind": "sub",
+                            "args": [
+                              {"var": "log_prob"},
+                              {
+                                "op": {
+                                  "kind": "div",
+                                  "args": [
+                                    {
+                                      "op": {
+                                        "kind": "mul",
+                                        "args": [{"var": "beta1"}, {"var": "beta1"}]
+                                      }
+                                    },
+                                    {
+                                      "op": {
+                                        "kind": "mul",
+                                        "args": [{"literal": 2.0}, {"var": "prior_var"}]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "comment": "Prior gradient contributions"
+                    },
+                    {
+                      "assign": {
+                        "target": "grad_beta0",
+                        "value": {
+                          "op": {
+                            "kind": "sub",
+                            "args": [
+                              {"var": "grad_beta0"},
+                              {
+                                "op": {
+                                  "kind": "div",
+                                  "args": [
+                                    {"var": "beta0"},
+                                    {"var": "prior_var"}
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "assign": {
+                        "target": "grad_beta1",
+                        "value": {
+                          "op": {
+                            "kind": "sub",
+                            "args": [
+                              {"var": "grad_beta1"},
+                              {
+                                "op": {
+                                  "kind": "div",
+                                  "args": [
+                                    {"var": "beta1"},
+                                    {"var": "prior_var"}
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "comment": "Likelihood contributions"
+                    },
+                    {
+                      "for": {
+                        "var": "i",
+                        "range": {
+                          "start": {"literal": 0},
+                          "end": {"call": {"function": "X.len", "args": []}}
+                        },
+                        "body": [
+                          {
+                            "let": {
+                              "name": "x1",
+                              "value": {
+                                "index": {
+                                  "array": {
+                                    "index": {"array": "X", "index": {"var": "i"}}
+                                  },
+                                  "index": {"literal": 1}
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "let": {
+                              "name": "yi",
+                              "value": {
+                                "index": {"array": "y", "index": {"var": "i"}}
+                              }
+                            }
+                          },
+                          {
+                            "let": {
+                              "name": "linear_pred",
+                              "value": {
+                                "op": {
+                                  "kind": "add",
+                                  "args": [
+                                    {"var": "beta0"},
+                                    {
+                                      "op": {
+                                        "kind": "mul",
+                                        "args": [{"var": "beta1"}, {"var": "x1"}]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "let": {
+                              "name": "prob",
+                              "value": {
+                                "op": {
+                                  "kind": "div",
+                                  "args": [
+                                    {"literal": 1.0},
+                                    {
+                                      "op": {
+                                        "kind": "add",
+                                        "args": [
+                                          {"literal": 1.0},
+                                          {
+                                            "call": {
+                                              "function": "exp",
+                                              "args": [
+                                                {
+                                                  "op": {
+                                                    "kind": "sub",
+                                                    "args": [
+                                                      {"literal": 0.0},
+                                                      {"var": "linear_pred"}
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "let": {
+                              "name": "likelihood_contrib",
+                              "value": {
+                                "if": {
+                                  "condition": {
+                                    "op": {
+                                      "kind": "eq",
+                                      "args": [{"var": "yi"}, {"literal": 1}]
+                                    }
+                                  },
+                                  "then": [
+                                    {
+                                      "call": {
+                                        "function": "log",
+                                        "args": [{"var": "prob"}]
+                                      }
+                                    }
+                                  ],
+                                  "else": [
+                                    {
+                                      "call": {
+                                        "function": "log",
+                                        "args": [
+                                          {
+                                            "op": {
+                                              "kind": "sub",
+                                              "args": [
+                                                {"literal": 1.0},
+                                                {"var": "prob"}
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "assign": {
+                              "target": "log_prob",
+                              "value": {
+                                "op": {
+                                  "kind": "add",
+                                  "args": [
+                                    {"var": "log_prob"},
+                                    {"var": "likelihood_contrib"}
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "comment": "Gradient contributions from likelihood"
+                          },
+                          {
+                            "let": {
+                              "name": "residual",
+                              "value": {
+                                "op": {
+                                  "kind": "sub",
+                                  "args": [
+                                    {"var": "yi"},
+                                    {"var": "prob"}
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "assign": {
+                              "target": "grad_beta0",
+                              "value": {
+                                "op": {
+                                  "kind": "add",
+                                  "args": [
+                                    {"var": "grad_beta0"},
+                                    {"var": "residual"}
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "assign": {
+                              "target": "grad_beta1",
+                              "value": {
+                                "op": {
+                                  "kind": "add",
+                                  "args": [
+                                    {"var": "grad_beta1"},
+                                    {
+                                      "op": {
+                                        "kind": "mul",
+                                        "args": [
+                                          {"var": "residual"},
+                                          {"var": "x1"}
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "comment": "Store gradients"
+                    },
+                    {
+                      "call": {
+                        "function": "gradients.put",
+                        "args": [
+                          {"literal": "beta0"},
+                          {"var": "grad_beta0"}
+                        ]
+                      }
+                    },
+                    {
+                      "call": {
+                        "function": "gradients.put",
+                        "args": [
+                          {"literal": "beta1"},
+                          {"var": "grad_beta1"}
+                        ]
+                      }
+                    },
+                    {
+                      "return": {"var": "log_prob"}
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "comment": "Run HMC sampling"
+          },
+          {
+            "call": {
+              "function": "hmc_sampler.sample",
+              "args": [
+                {"var": "logistic_log_prob"},
+                {"literal": null},
+                {"literal": 1000}
+              ]
+            }
+          },
+          {
+            "comment": "Extract and analyze results"
+          },
+          {
+            "let": {
+              "name": "beta0_trace",
+              "value": {
+                "call": {
+                  "function": "hmc_sampler.getTrace",
+                  "args": [{"literal": "beta0"}]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "beta1_trace",
+              "value": {
+                "call": {
+                  "function": "hmc_sampler.getTrace",
+                  "args": [{"literal": "beta1"}]
+                }
+              }
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "HMC Sampling Results:"},
+                {"literal": ""}
+              ]
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Acceptance Rate: {d:.3}"},
+                {
+                  "call": {
+                    "function": "hmc_sampler.getAcceptanceRate",
+                    "args": []
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "let": {
+              "name": "beta0_mean",
+              "value": {
+                "call": {
+                  "function": "computeMean",
+                  "args": [
+                    {"field": {"object": "beta0_trace", "field": "values"}}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "beta1_mean",
+              "value": {
+                "call": {
+                  "function": "computeMean",
+                  "args": [
+                    {"field": {"object": "beta1_trace", "field": "values"}}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Beta0 (Intercept) Posterior Mean: {d:.4}"},
+                {"var": "beta0_mean"}
+              ]
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Beta1 (Slope) Posterior Mean: {d:.4}"},
+                {"var": "beta1_mean"}
+              ]
+            }
+          },
+          {
+            "let": {
+              "name": "beta0_std",
+              "value": {
+                "call": {
+                  "function": "computeStd",
+                  "args": [
+                    {"field": {"object": "beta0_trace", "field": "values"}}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "beta1_std",
+              "value": {
+                "call": {
+                  "function": "computeStd",
+                  "args": [
+                    {"field": {"object": "beta1_trace", "field": "values"}}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Beta0 Posterior Std: {d:.4}"},
+                {"var": "beta0_std"}
+              ]
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Beta1 Posterior Std: {d:.4}"},
+                {"var": "beta1_std"}
+              ]
+            }
+          },
+          {
+            "comment": "Effective sample sizes"
+          },
+          {
+            "let": {
+              "name": "beta0_ess",
+              "value": {
+                "call": {
+                  "function": "hmc_sampler.getEffectiveSampleSize",
+                  "args": [{"literal": "beta0"}]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "beta1_ess",
+              "value": {
+                "call": {
+                  "function": "hmc_sampler.getEffectiveSampleSize",
+                  "args": [{"literal": "beta1"}]
+                }
+              }
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Beta0 Effective Sample Size: {d:.1}"},
+                {"var": "beta0_ess"}
+              ]
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Beta1 Effective Sample Size: {d:.1}"},
+                {"var": "beta1_ess"}
+              ]
+            }
+          },
+          {
+            "comment": "Credible intervals"
+          },
+          {
+            "let": {
+              "name": "beta0_ci",
+              "value": {
+                "call": {
+                  "function": "computeCredibleInterval",
+                  "args": [
+                    {"field": {"object": "beta0_trace", "field": "values"}},
+                    {"literal": 0.95}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "beta1_ci",
+              "value": {
+                "call": {
+                  "function": "computeCredibleInterval",
+                  "args": [
+                    {"field": {"object": "beta1_trace", "field": "values"}},
+                    {"literal": 0.95}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Beta0 95% Credible Interval: [{d:.4}, {d:.4}]"},
+                {"index": {"array": "beta0_ci", "index": {"literal": 0}}},
+                {"index": {"array": "beta0_ci", "index": {"literal": 1}}}
+              ]
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Beta1 95% Credible Interval: [{d:.4}, {d:.4}]"},
+                {"index": {"array": "beta1_ci", "index": {"literal": 0}}},
+                {"index": {"array": "beta1_ci", "index": {"literal": 1}}}
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "types": {},
+    "constants": {},
+    "interfaces": {}
+  }
+}

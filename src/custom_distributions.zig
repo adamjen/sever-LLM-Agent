@@ -28,6 +28,45 @@ pub const DistributionParameter = struct {
         if (self.description) |desc| {
             allocator.free(desc);
         }
+        // Free any allocated Type pointers in param_type
+        freeTypeRecursive(self.param_type, allocator);
+    }
+    
+    /// Recursively free Type pointers (only handle simple cases for now)
+    fn freeTypeRecursive(t: Type, allocator: Allocator) void {
+        switch (t) {
+            .array => |arr| {
+                // Only free if the element is a simple type we allocated
+                switch (arr.element.*) {
+                    .f64, .f32, .i64, .i32, .u64, .u32, .str, .bool => {
+                        allocator.destroy(arr.element);
+                    },
+                    else => {
+                        // Recursively free more complex types
+                        freeTypeRecursive(arr.element.*, allocator);
+                        allocator.destroy(arr.element);
+                    }
+                }
+            },
+            .slice => |slice| {
+                // Only free if the element is a simple type we allocated
+                switch (slice.element.*) {
+                    .f64, .f32, .i64, .i32, .u64, .u32, .str, .bool => {
+                        allocator.destroy(slice.element);
+                    },
+                    else => {
+                        freeTypeRecursive(slice.element.*, allocator);
+                        allocator.destroy(slice.element);
+                    }
+                }
+            },
+            .optional => |opt| {
+                freeTypeRecursive(opt.*, allocator);
+                allocator.destroy(opt);
+            },
+            // For now, skip complex types that might have ownership issues
+            else => {},
+        }
     }
 };
 
@@ -183,6 +222,7 @@ pub const CustomDistribution = struct {
             allocator.free(self.name);
             allocator.free(self.description);
             
+            // Free the keys that were allocated with dupe()
             var param_iter = self.parameters.iterator();
             while (param_iter.next()) |entry| {
                 allocator.free(entry.key_ptr.*);
@@ -297,6 +337,9 @@ pub const DistributionRegistry = struct {
     pub fn deinit(self: *DistributionRegistry) void {
         var dist_iter = self.distributions.iterator();
         while (dist_iter.next()) |entry| {
+            // Free the duplicated key
+            self.allocator.free(entry.key_ptr.*);
+            // Free the distribution value
             entry.value_ptr.deinit(self.allocator);
         }
         self.distributions.deinit();

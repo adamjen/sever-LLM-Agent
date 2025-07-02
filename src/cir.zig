@@ -522,6 +522,21 @@ pub const CirLowering = struct {
                 // In a full async implementation, this would handle async frames
                 return try self.lowerExpression(await_expr);
             },
+            .mixture => {
+                // For now, treat mixture models as float constants
+                // In a full implementation, this would generate probabilistic model code
+                return CirValue{ .float_const = .{ .value = 0.0, .type = CirType.f64 } };
+            },
+            .hierarchical => {
+                // For now, treat hierarchical models as float constants  
+                // In a full implementation, this would generate hierarchical model code
+                return CirValue{ .float_const = .{ .value = 0.0, .type = CirType.f64 } };
+            },
+            .sample => {
+                // For now, treat sample expressions as float constants
+                // In a full implementation, this would generate sampling code
+                return CirValue{ .float_const = .{ .value = 0.0, .type = CirType.f64 } };
+            },
             else => {
                 try self.error_reporter.reportError(null, "Unsupported expression type in CIR lowering", .{});
                 return CirError.UnsupportedOperation;

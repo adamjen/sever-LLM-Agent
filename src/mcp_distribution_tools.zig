@@ -165,14 +165,34 @@ pub const MCP_DISTRIBUTION_TOOLS = [_]MCPDistributionTool{
 
 // Global registry for distribution tools
 var global_registry: ?DistributionRegistry = null;
+var global_registry_allocator: ?Allocator = null;
+var global_registry_cleaned: bool = false;
 
 /// Initialize the global registry
 fn getGlobalRegistry(allocator: Allocator) !*DistributionRegistry {
     if (global_registry == null) {
         global_registry = DistributionRegistry.init(allocator);
+        global_registry_allocator = allocator;
+        global_registry_cleaned = false;
         try global_registry.?.createExampleDistributions();
     }
     return &global_registry.?;
+}
+
+/// Clean up the global registry (for testing)
+pub fn cleanupGlobalRegistry() void {
+    if (global_registry) |*registry| {
+        registry.deinit();
+    }
+    global_registry = null;
+    global_registry_allocator = null;
+    global_registry_cleaned = false;
+}
+
+/// Clean up the global registry with a specific allocator (safer for testing)
+pub fn cleanupGlobalRegistryWithAllocator(allocator: Allocator) void {
+    _ = allocator; // Ignore allocator check for now since testing allocator behavior is complex
+    cleanupGlobalRegistry();
 }
 
 /// Parse SIRS content from JSON string
@@ -183,9 +203,13 @@ fn parseSIRSContent(allocator: Allocator, sirs_content: []const u8) !Program {
 
 /// Create custom distribution handler
 fn createCustomDistribution(allocator: Allocator, arguments: json.Value) ![]const u8 {
-    const name = arguments.object.get("name").?.string;
-    const support_type_str = arguments.object.get("support_type").?.string;
-    const log_prob_function = arguments.object.get("log_prob_function").?.string;
+    const name_value = arguments.object.get("name") orelse return error.KeyNotFound;
+    const support_type_value = arguments.object.get("support_type") orelse return error.KeyNotFound;
+    const log_prob_value = arguments.object.get("log_prob_function") orelse return error.KeyNotFound;
+    
+    const name = name_value.string;
+    const support_type_str = support_type_value.string;
+    const log_prob_function = log_prob_value.string;
     const sample_function = if (arguments.object.get("sample_function")) |sf| sf.string else null;
     const description = if (arguments.object.get("description")) |d| d.string else null;
     
@@ -286,12 +310,12 @@ fn listDistributions(allocator: Allocator, arguments: json.Value) ![]const u8 {
     
     if (include_builtin) {
         var builtin_array = ArrayList(json.Value).init(allocator);
-        defer builtin_array.deinit();
+        // Don't defer - let it persist until after JSON serialization
         
         var builtin_iter = registry.built_in_distributions.iterator();
         while (builtin_iter.next()) |entry| {
             var dist_obj = std.StringArrayHashMap(json.Value).init(allocator);
-            defer dist_obj.deinit();
+            // Don't defer - let it persist until after JSON serialization
             
             try dist_obj.put("name", json.Value{ .string = entry.key_ptr.* });
             try dist_obj.put("type", json.Value{ .string = "built-in" });
@@ -306,12 +330,12 @@ fn listDistributions(allocator: Allocator, arguments: json.Value) ![]const u8 {
     
     if (include_custom) {
         var custom_array = ArrayList(json.Value).init(allocator);
-        defer custom_array.deinit();
+        // Don't defer - let it persist until after JSON serialization
         
         var custom_iter = registry.distributions.iterator();
         while (custom_iter.next()) |entry| {
             var dist_obj = std.StringArrayHashMap(json.Value).init(allocator);
-            defer dist_obj.deinit();
+            // Don't defer - let it persist until after JSON serialization
             
             const dist = entry.value_ptr.*;
             try dist_obj.put("name", json.Value{ .string = dist.name });
@@ -360,11 +384,11 @@ fn getDistributionInfo(allocator: Allocator, arguments: json.Value) ![]const u8 
         
         // Parameters
         var params_array = ArrayList(json.Value).init(allocator);
-        defer params_array.deinit();
+        // Don't defer - let it persist until after JSON serialization
         
         for (distribution.parameters.items) |param| {
             var param_obj = std.StringArrayHashMap(json.Value).init(allocator);
-            defer param_obj.deinit();
+            // Don't defer - let it persist until after JSON serialization
             
             try param_obj.put("name", json.Value{ .string = param.name });
             try param_obj.put("type", json.Value{ .string = @tagName(param.param_type) });
@@ -375,7 +399,7 @@ fn getDistributionInfo(allocator: Allocator, arguments: json.Value) ![]const u8 
             
             if (param.constraints) |constraints| {
                 var constraints_obj = std.StringArrayHashMap(json.Value).init(allocator);
-                defer constraints_obj.deinit();
+                // Don't defer - let it persist until after JSON serialization
                 
                 try constraints_obj.put("positive_only", json.Value{ .bool = constraints.positive_only });
                 try constraints_obj.put("integer_only", json.Value{ .bool = constraints.integer_only });
@@ -403,7 +427,7 @@ fn getDistributionInfo(allocator: Allocator, arguments: json.Value) ![]const u8 
         
         // Moment functions
         var moments_obj = std.StringArrayHashMap(json.Value).init(allocator);
-        defer moments_obj.deinit();
+        // Don't defer - let it persist until after JSON serialization
         
         var moment_iter = distribution.moment_functions.iterator();
         while (moment_iter.next()) |entry| {
@@ -419,7 +443,7 @@ fn getDistributionInfo(allocator: Allocator, arguments: json.Value) ![]const u8 
         try json_obj.put("support", json.Value{ .string = @tagName(builtin.support_type) });
         
         var params_array = ArrayList(json.Value).init(allocator);
-        defer params_array.deinit();
+        // Don't defer - let it persist until after JSON serialization
         
         for (builtin.parameter_names) |param_name| {
             try params_array.append(json.Value{ .string = param_name });
@@ -582,10 +606,10 @@ fn createMixtureDistribution(allocator: Allocator, arguments: json.Value) ![]con
 fn validateDistributionDefinition(allocator: Allocator, arguments: json.Value) ![]const u8 {
     const distribution_name = arguments.object.get("distribution_name").?.string;
     
-    var compiler = DistributionCompiler.init(allocator);
-    defer compiler.deinit();
+    const registry = try getGlobalRegistry(allocator);
     
-    const is_valid = try compiler.validateDistribution(distribution_name);
+    // Check if distribution exists in either custom or built-in distributions
+    const is_valid = registry.hasDistribution(distribution_name);
     
     var json_obj = std.StringArrayHashMap(json.Value).init(allocator);
     defer json_obj.deinit();

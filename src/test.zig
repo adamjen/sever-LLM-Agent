@@ -11,6 +11,10 @@ comptime {
     _ = @import("test_custom_distributions.zig");
     _ = @import("test_mcp_distribution_tools.zig");
     _ = @import("test_distribution_compiler.zig");
+    _ = @import("test_mcmc.zig");
+    _ = @import("test_mcmc_integration.zig");
+    _ = @import("test_variational_inference.zig");
+    _ = @import("test_vi_integration.zig");
 }
 
 test "SIRS parser basic functionality" {
@@ -51,7 +55,8 @@ test "Type checker basic functionality" {
     var program = SirsParser.Program.init(allocator);
     defer program.deinit();
     
-    program.entry = "main";
+    program.entry = try allocator.dupe(u8, "main");
+    program.entry_allocated = true;
     
     // Create a simple main function
     var main_func = SirsParser.Function{
@@ -67,7 +72,8 @@ test "Type checker basic functionality" {
     };
     
     try main_func.body.append(return_stmt);
-    try program.functions.put("main", main_func);
+    const main_name = try allocator.dupe(u8, "main");
+    try program.functions.put(main_name, main_func);
     
     var type_checker = TypeChecker.init(allocator);
     defer type_checker.deinit();
@@ -138,7 +144,8 @@ test "Code generation basic test" {
     var program = SirsParser.Program.init(allocator);
     defer program.deinit();
     
-    program.entry = "main";
+    program.entry = try allocator.dupe(u8, "main");
+    program.entry_allocated = true;
     
     // Create a simple main function
     var main_func = SirsParser.Function{
@@ -154,7 +161,8 @@ test "Code generation basic test" {
     };
     
     try main_func.body.append(return_stmt);
-    try program.functions.put("main", main_func);
+    const main_name = try allocator.dupe(u8, "main");
+    try program.functions.put(main_name, main_func);
     
     var codegen = CodeGen.init(allocator);
     defer codegen.deinit();

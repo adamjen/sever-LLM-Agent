@@ -1,0 +1,110 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "i32", 
+        "body": [
+          {
+            "let": {
+              "name": "school_performance_model",
+              "value": {
+                "hierarchical": {
+                  "name": "student_test_scores",
+                  "levels": [
+                    {
+                      "level_name": "school",
+                      "group_variable": "school_id",
+                      "parameters": {
+                        "school_intercept": {
+                          "distribution": "normal",
+                          "hyperparameters": ["mu_intercept", "sigma_intercept"]
+                        },
+                        "school_slope": {
+                          "distribution": "normal", 
+                          "hyperparameters": ["mu_slope", "sigma_slope"],
+                          "link_function": "identity"
+                        }
+                      },
+                      "hyperpriors": {
+                        "mu_intercept": {
+                          "sample": {
+                            "distribution": "normal",
+                            "params": [{"literal": 500.0}, {"literal": 100.0}]
+                          }
+                        },
+                        "sigma_intercept": {
+                          "sample": {
+                            "distribution": "gamma",
+                            "params": [{"literal": 2.0}, {"literal": 50.0}]
+                          }
+                        },
+                        "mu_slope": {
+                          "sample": {
+                            "distribution": "normal", 
+                            "params": [{"literal": 0.0}, {"literal": 10.0}]
+                          }
+                        },
+                        "sigma_slope": {
+                          "sample": {
+                            "distribution": "gamma",
+                            "params": [{"literal": 2.0}, {"literal": 5.0}]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "level_name": "student",
+                      "group_variable": "student_id", 
+                      "parameters": {
+                        "ability": {
+                          "distribution": "normal",
+                          "hyperparameters": ["mu_ability", "sigma_ability"]
+                        }
+                      },
+                      "hyperpriors": {
+                        "mu_ability": {
+                          "sample": {
+                            "distribution": "normal",
+                            "params": [{"literal": 0.0}, {"literal": 1.0}]
+                          }
+                        },
+                        "sigma_ability": {
+                          "sample": {
+                            "distribution": "gamma", 
+                            "params": [{"literal": 2.0}, {"literal": 1.0}]
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "observation_model": {
+                    "likelihood": "normal",
+                    "parameters": ["school_intercept", "school_slope", "ability"],
+                    "link_functions": {
+                      "school_intercept": "identity",
+                      "school_slope": "identity", 
+                      "ability": "identity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "expression": {
+              "call": {
+                "function": "std_print",
+                "args": [{"literal": "Hierarchical model defined successfully"}]
+              }
+            }
+          },
+          {
+            "return": {"literal": 0}
+          }
+        ]
+      }
+    }
+  }
+}

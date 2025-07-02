@@ -1,0 +1,400 @@
+{
+  "program": {
+    "entry": "main",
+    "functions": {
+      "main": {
+        "args": [],
+        "return": "void",
+        "body": [
+          {
+            "comment": "Graphical Model Example in SIRS"
+          },
+          {
+            "comment": "Hierarchical Bayesian Linear Regression with Graphical Model Syntax"
+          },
+          {
+            "model": {
+              "name": "hierarchical_regression",
+              "nodes": [
+                {
+                  "graphical_node": {
+                    "name": "alpha_mu",
+                    "node_type": "hyperparameter",
+                    "distribution": "normal",
+                    "parameters": [
+                      {"literal": 0.0},
+                      {"literal": 10.0}
+                    ],
+                    "parents": [],
+                    "observed_value": null,
+                    "plate_memberships": []
+                  }
+                },
+                {
+                  "graphical_node": {
+                    "name": "alpha_sigma",
+                    "node_type": "hyperparameter", 
+                    "distribution": "gamma",
+                    "parameters": [
+                      {"literal": 2.0},
+                      {"literal": 1.0}
+                    ],
+                    "parents": [],
+                    "observed_value": null,
+                    "plate_memberships": []
+                  }
+                },
+                {
+                  "graphical_node": {
+                    "name": "beta_mu",
+                    "node_type": "hyperparameter",
+                    "distribution": "normal", 
+                    "parameters": [
+                      {"literal": 0.0},
+                      {"literal": 5.0}
+                    ],
+                    "parents": [],
+                    "observed_value": null,
+                    "plate_memberships": []
+                  }
+                },
+                {
+                  "graphical_node": {
+                    "name": "beta_sigma",
+                    "node_type": "hyperparameter",
+                    "distribution": "gamma",
+                    "parameters": [
+                      {"literal": 2.0},
+                      {"literal": 1.0}
+                    ],
+                    "parents": [],
+                    "observed_value": null,
+                    "plate_memberships": []
+                  }
+                },
+                {
+                  "graphical_node": {
+                    "name": "sigma",
+                    "node_type": "parameter",
+                    "distribution": "gamma",
+                    "parameters": [
+                      {"literal": 2.0},
+                      {"literal": 1.0}
+                    ],
+                    "parents": [],
+                    "observed_value": null,
+                    "plate_memberships": []
+                  }
+                },
+                {
+                  "graphical_node": {
+                    "name": "alpha",
+                    "node_type": "parameter",
+                    "distribution": "normal",
+                    "parameters": [
+                      {"var": "alpha_mu"},
+                      {"var": "alpha_sigma"}
+                    ],
+                    "parents": ["alpha_mu", "alpha_sigma"],
+                    "observed_value": null,
+                    "plate_memberships": ["group_plate"]
+                  }
+                },
+                {
+                  "graphical_node": {
+                    "name": "beta",
+                    "node_type": "parameter",
+                    "distribution": "normal",
+                    "parameters": [
+                      {"var": "beta_mu"},
+                      {"var": "beta_sigma"}
+                    ],
+                    "parents": ["beta_mu", "beta_sigma"],
+                    "observed_value": null,
+                    "plate_memberships": ["group_plate"]
+                  }
+                },
+                {
+                  "graphical_node": {
+                    "name": "mu_i",
+                    "node_type": "deterministic",
+                    "distribution": null,
+                    "parameters": [
+                      {
+                        "op": {
+                          "kind": "add",
+                          "args": [
+                            {"var": "alpha"},
+                            {
+                              "op": {
+                                "kind": "mul",
+                                "args": [
+                                  {"var": "beta"},
+                                  {"index": {"array": "x", "index": {"var": "i"}}}
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "parents": ["alpha", "beta"],
+                    "observed_value": null,
+                    "plate_memberships": ["data_plate", "group_plate"]
+                  }
+                },
+                {
+                  "graphical_node": {
+                    "name": "y",
+                    "node_type": "observed",
+                    "distribution": "normal",
+                    "parameters": [
+                      {"var": "mu_i"},
+                      {"var": "sigma"}
+                    ],
+                    "parents": ["mu_i", "sigma"],
+                    "observed_value": {"index": {"array": "y_data", "index": {"var": "i"}}},
+                    "plate_memberships": ["data_plate", "group_plate"]
+                  }
+                }
+              ],
+              "plates": [
+                {
+                  "plate": {
+                    "name": "group_plate",
+                    "size": {"var": "n_groups"},
+                    "index_variable": "g",
+                    "condition": null,
+                    "body": []
+                  }
+                },
+                {
+                  "plate": {
+                    "name": "data_plate",
+                    "size": {"call": {"function": "x.len", "args": []}},
+                    "index_variable": "i",
+                    "condition": null,
+                    "body": []
+                  }
+                }
+              ],
+              "factors": [
+                {
+                  "factor": {
+                    "name": "prior_regularization",
+                    "variables": ["alpha", "beta"],
+                    "function_expr": {
+                      "op": {
+                        "kind": "add",
+                        "args": [
+                          {
+                            "op": {
+                              "kind": "mul",
+                              "args": [
+                                {"literal": 0.1},
+                                {
+                                  "op": {
+                                    "kind": "mul", 
+                                    "args": [{"var": "alpha"}, {"var": "alpha"}]
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "op": {
+                              "kind": "mul",
+                              "args": [
+                                {"literal": 0.1},
+                                {
+                                  "op": {
+                                    "kind": "mul",
+                                    "args": [{"var": "beta"}, {"var": "beta"}]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "factor_type": "soft_constraint",
+                    "log_space": true
+                  }
+                }
+              ],
+              "inference_target": "alpha"
+            }
+          },
+          {
+            "comment": "Data preparation"
+          },
+          {
+            "let": {
+              "name": "x",
+              "value": {
+                "array": [
+                  {"literal": 1.0}, {"literal": 2.0}, {"literal": 3.0}, 
+                  {"literal": 4.0}, {"literal": 5.0}, {"literal": 6.0}
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "y_data",
+              "value": {
+                "array": [
+                  {"literal": 2.1}, {"literal": 4.2}, {"literal": 6.1}, 
+                  {"literal": 8.3}, {"literal": 10.2}, {"literal": 12.1}
+                ]
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "n_groups",
+              "value": {"literal": 1}
+            }
+          },
+          {
+            "comment": "Configure MCMC inference"
+          },
+          {
+            "let": {
+              "name": "mcmc_config",
+              "value": {
+                "struct": {
+                  "type": "MCMCConfig",
+                  "fields": {
+                    "num_samples": {"literal": 1000},
+                    "num_warmup": {"literal": 500},
+                    "num_chains": {"literal": 4},
+                    "algorithm": {"enum": "MCMCAlgorithm.adaptive_metropolis"},
+                    "step_size": {"literal": 0.1},
+                    "target_accept_rate": {"literal": 0.6}
+                  }
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "mcmc_sampler",
+              "value": {
+                "call": {
+                  "function": "MCMCSampler.init",
+                  "args": [
+                    {"var": "allocator"},
+                    {"var": "mcmc_config"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "comment": "Run inference on graphical model"
+          },
+          {
+            "call": {
+              "function": "mcmc_sampler.inferModel",
+              "args": [
+                {"var": "hierarchical_regression"},
+                {"var": "x"},
+                {"var": "y_data"}
+              ]
+            }
+          },
+          {
+            "comment": "Extract and display results"
+          },
+          {
+            "let": {
+              "name": "alpha_samples",
+              "value": {
+                "call": {
+                  "function": "mcmc_sampler.getSamples",
+                  "args": [{"literal": "alpha"}]
+                }
+              }
+            }
+          },
+          {
+            "let": {
+              "name": "beta_samples", 
+              "value": {
+                "call": {
+                  "function": "mcmc_sampler.getSamples",
+                  "args": [{"literal": "beta"}]
+                }
+              }
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Alpha posterior mean: {d}"},
+                {
+                  "call": {
+                    "function": "computeMean",
+                    "args": [{"var": "alpha_samples"}]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Beta posterior mean: {d}"},
+                {
+                  "call": {
+                    "function": "computeMean",
+                    "args": [{"var": "beta_samples"}]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "comment": "Model diagnostics"
+          },
+          {
+            "let": {
+              "name": "diagnostics",
+              "value": {
+                "call": {
+                  "function": "mcmc_sampler.getDiagnostics",
+                  "args": []
+                }
+              }
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "Effective sample size: {d}"},
+                {"field": {"object": "diagnostics", "field": "eff_sample_size"}}
+              ]
+            }
+          },
+          {
+            "call": {
+              "function": "print",
+              "args": [
+                {"literal": "R-hat diagnostic: {d}"},
+                {"field": {"object": "diagnostics", "field": "r_hat"}}
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "types": {},
+    "constants": {},
+    "interfaces": {}
+  }
+}
