@@ -12,6 +12,8 @@ const DebugInfoGenerator = @import("debugger.zig").DebugInfoGenerator;
 const Linter = @import("linter.zig").Linter;
 const LintConfig = @import("linter.zig").LintConfig;
 const LintSeverity = @import("linter.zig").LintSeverity;
+const SevConverter = @import("sev_converter.zig").Converter;
+const benchmarkTokenUsage = @import("sev_converter.zig").benchmarkTokenUsage;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -68,6 +70,12 @@ pub fn main() !void {
             return;
         }
         try lintCommand(allocator, args[2]);
+    } else if (std.mem.eql(u8, command, "convert")) {
+        if (args.len < 4) {
+            print("Error: convert command requires input and output files\n", .{});
+            return;
+        }
+        try convertCommand(allocator, args[2], args[3]);
     } else {
         print("Error: Unknown command '{s}'\n", .{command});
         try CLI.printUsage();
@@ -235,5 +243,67 @@ fn lintCommand(allocator: Allocator, input_file: []const u8) !void {
     
     if (has_errors) {
         std.process.exit(1);
+    }
+}
+
+fn convertCommand(allocator: Allocator, input_file: []const u8, output_file: []const u8) !void {
+    print("Converting {s} to {s}\n", .{ input_file, output_file });
+    
+    // Read input file
+    const input_content = std.fs.cwd().readFileAlloc(allocator, input_file, 1024 * 1024) catch |err| {
+        print("Error reading input file {s}: {}\n", .{ input_file, err });
+        return;
+    };
+    defer allocator.free(input_content);
+    
+    // Detect input and output formats
+    const input_format = detectFormat(input_file);
+    const output_format = detectFormat(output_file);
+    
+    if (input_format == output_format) {
+        print("Error: Input and output formats are the same\n", .{});
+        return;
+    }
+    
+    var converter = SevConverter.init(allocator);
+    
+    const output_content = switch (input_format) {
+        .json => switch (output_format) {
+            .sev => try converter.jsonToSev(input_content),
+            .json => unreachable,
+        },
+        .sev => switch (output_format) {
+            .json => try converter.sevToJson(input_content),
+            .sev => unreachable,
+        },
+    };
+    defer allocator.free(output_content);
+    
+    // Write output file
+    std.fs.cwd().writeFile(.{ .sub_path = output_file, .data = output_content }) catch |err| {
+        print("Error writing output file {s}: {}\n", .{ output_file, err });
+        return;
+    };
+    
+    // Show compression stats if converting to SEV
+    if (output_format == .sev) {
+        const benchmark = try benchmarkTokenUsage(allocator, input_content);
+        print("\nConversion complete! Token efficiency:\n", .{});
+        print("{}\n", .{benchmark});
+    } else {
+        print("Conversion complete\n", .{});
+    }
+}
+
+const FileFormat = enum { json, sev };
+
+fn detectFormat(filename: []const u8) FileFormat {
+    if (std.mem.endsWith(u8, filename, ".sev")) {
+        return .sev;
+    } else if (std.mem.endsWith(u8, filename, ".sirs.json") or std.mem.endsWith(u8, filename, ".json")) {
+        return .json;
+    } else {
+        // Default to JSON for unknown extensions
+        return .json;
     }
 }

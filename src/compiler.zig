@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
 const SirsParser = @import("sirs.zig");
+const SevSimpleParser = @import("sev_simple.zig").SevSimpleParser;
 const TypeChecker = @import("typechecker.zig").TypeChecker;
 const CodeGen = @import("codegen.zig").CodeGen;
 const McpServer = @import("mcp.zig").McpServer;
@@ -78,13 +79,13 @@ pub const SeverCompiler = struct {
         };
         defer self.allocator.free(content);
         
-        print("Phase 2: Parsing SIRS...\n", .{});
-        var program = self.parser.parse(content) catch |err| {
+        print("Phase 2: Parsing program...\n", .{});
+        var program = self.parseProgram(input_file, content) catch |err| {
             try self.error_reporter.reportErrorWithHint(
                 null,
-                "Failed to parse SIRS file: {s}",
+                "Failed to parse program file: {s}",
                 .{@errorName(err)},
-                "Check that the JSON syntax is valid and follows the SIRS specification",
+                "Check that the file syntax is valid and follows the specification",
                 .{}
             );
             self.error_reporter.printAllErrors();
@@ -282,6 +283,18 @@ pub const SeverCompiler = struct {
         defer mcp_server.deinit();
         
         try mcp_server.start();
+    }
+    
+    /// Parse a program from either SIRS JSON or SEV format based on file extension
+    fn parseProgram(self: *SeverCompiler, filename: []const u8, content: []const u8) !SirsParser.Program {
+        if (std.mem.endsWith(u8, filename, ".sev")) {
+            // Parse SEV format
+            var sev_parser = SevSimpleParser.init(self.allocator, content);
+            return try sev_parser.parse();
+        } else {
+            // Default to SIRS JSON format
+            return try self.parser.parse(content);
+        }
     }
     
     fn readFile(self: *SeverCompiler, path: []const u8) ![]u8 {

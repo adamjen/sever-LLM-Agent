@@ -72,7 +72,13 @@
       "Bash(zig ast-check:*)",
       "Bash(./dist/gaussian_mixture_model)",
       "Bash(./dist/hierarchical_linear_model)",
-      "Bash(./dist/observability_anomaly_detection)"
+      "Bash(./dist/observability_anomaly_detection)",
+      "Bash(true)",
+      "Bash(/Users/avitaltamir/projects/sever1/dist/sev convert examples/simple_math.sirs.json test.sev)",
+      "Bash(/Users/avitaltamir/projects/sever1/dist/sev build test.sev)",
+      "Bash(/Users/avitaltamir/projects/sever1/dist/sev convert test.sev test_roundtrip.json)",
+      "Bash(/Users/avitaltamir/projects/sever1/dist/test.sev)",
+      "Bash(/Users/avitaltamir/projects/sever1/dist/sev convert examples/simple_math.sirs.json test2.sev)"
     ],
     "deny": []
   }
