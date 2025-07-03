@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "anubis": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "/mnt/storage/projects/sever:/app/workspace",
+        "-v",
+        "/mnt/storage/projects/sever:/app/data",
+        "hiveacademy/anubis"
+      ],
+      "disabled": false,
+      "alwaysAllow": [],
+      "disabledTools": [
+        "get_report_status",
+        "get_workflow_guidance",
+        "get_step_guidance",
+        "report_step_completion",
+        "get_step_progress",
+        "get_next_available_step",
+        "get_role_transitions",
+        "validate_transition",
+        "execute_transition",
+        "get_transition_history",
+        "workflow_execution_operations",
+        "bootstrap_workflow",
+        "get_operation_schema",
+        "execute_mcp_operation",
+        "init_rules",
+        "generate_workflow_report"
+      ]
+    }
+  }
+}

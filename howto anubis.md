@@ -1,0 +1,1 @@
+docker run --rm -i -v /mnt/storage/projects/sever:/app/workspace -v anubis-data:/app/data hiveacademy/anubis
