@@ -33,3 +33,7 @@ Thumbs.db
 # Development and testing
 .env
 .env.local 
+
+.ruru/
+.roomodes
+.roo/
