@@ -3,3 +3,8 @@ uvicorn
 requests
 click
 python-dotenv
+fastapi
+uvicorn
+python-dotenv
+requests
+click

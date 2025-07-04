@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import sys
@@ -42,10 +42,13 @@ class AgentQueryResponse(BaseModel):
 class AgentStatusResponse(BaseModel):
     status: str
 
-# --- Agent Core Initialization ---
+# --- Agent Core Initialization & Dependency ---
 
-agent_core = AgentCore()
+agent_core_singleton = AgentCore()
 
+def get_agent_core():
+    """Dependency function to get the agent core instance."""
+    return agent_core_singleton
 
 # --- Middleware and Exception Handling ---
 
@@ -58,23 +61,32 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 # --- API Endpoints ---
 
+@app.get("/")
+async def read_root():
+    return {"message": "Welcome to the SIRS LLM Agent API!"}
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def get_favicon():
+    return {"message": "No favicon"}
+
+
 @app.get("/api/v1/agent/status", response_model=AgentStatusResponse)
-async def get_agent_status():
+async def get_agent_status(agent: AgentCore = Depends(get_agent_core)):
     """
     Retrieves the current status of the agent.
     """
     logger.info("Status endpoint was called.")
-    status = agent_core.get_status()
+    status = agent.get_status()
     return AgentStatusResponse(status=status)
 
 @app.post("/api/v1/agent/query", response_model=AgentQueryResponse)
-async def query_agent(request: AgentQueryRequest):
+async def query_agent(request: AgentQueryRequest, agent: AgentCore = Depends(get_agent_core)):
     """
     Submits a query to the agent and receives a response.
     """
     logger.info(f"Query received for session_id: {request.session_id}")
     # The response from AgentCore is a dict, we need to convert it to the Pydantic model
-    response_data = agent_core.process_query(
+    response_data = agent.process_query(
         session_id=request.session_id,
         prompt=request.prompt,
         context=request.context
