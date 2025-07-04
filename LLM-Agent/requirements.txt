@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+requests
+click
+python-dotenv
